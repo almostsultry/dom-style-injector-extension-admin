@@ -1,0 +1,256 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  lint-and-format:
+    name: 🔍 Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🔍 Run ESLint
+      run: npm run lint
+      
+    - name: 💅 Check Prettier formatting
+      run: npm run format:check
+      
+    - name: 📊 Upload lint results
+      uses: github/super-linter@v4
+      if: always()
+      env:
+        DEFAULT_BRANCH: main
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VALIDATE_JAVASCRIPT_ES: true
+        VALIDATE_HTML: true
+        VALIDATE_CSS: true
+
+  test:
+    name: 🧪 Test Suite
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        test-type: [unit, integration]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🧪 Run ${{ matrix.test-type }} tests
+      run: npm run test:${{ matrix.test-type }}
+      
+    - name: 📊 Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      if: matrix.test-type == 'unit'
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+
+  e2e-test:
+    name: 🎭 End-to-End Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🎭 Install Playwright
+      run: npx playwright install
+      
+    - name: 🏗️ Build extension
+      run: npm run build:admin
+      
+    - name: 🎭 Run E2E tests
+      run: npm run test:e2e
+      
+    - name: 📊 Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
+
+  build:
+    name: 🏗️ Build Extensions
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test]
+    
+    strategy:
+      matrix:
+        version: [admin, user]
+        browser: [chrome, edge]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build ${{ matrix.version }} version for ${{ matrix.browser }}
+      run: npm run build:${{ matrix.version }}:${{ matrix.browser }}
+      
+    - name: 📦 Package extension
+      run: npm run package:${{ matrix.version }}:${{ matrix.browser }}
+      
+    - name: 📊 Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: extension-${{ matrix.version }}-${{ matrix.browser }}-${{ github.sha }}
+        path: dist/${{ matrix.version }}/${{ matrix.browser }}/
+        retention-days: 7
+
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔒 Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: 📊 Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+        
+    - name: 🔍 Audit npm dependencies
+      run: npm audit --audit-level moderate
+
+  validate-manifest:
+    name: ✅ Validate Extension Manifests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: ✅ Validate admin manifest
+      run: npm run validate:manifest:admin
+      
+    - name: ✅ Validate user manifest
+      run: npm run validate:manifest:user
+      
+    - name: 🔍 Check permissions
+      run: npm run check:permissions
+
+  performance-test:
+    name: ⚡ Performance Tests
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 📥 Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: extension-admin-chrome-${{ github.sha }}
+        path: ./test-extension/
+        
+    - name: ⚡ Run performance tests
+      run: npm run test:performance
+      
+    - name: 📊 Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results-${{ github.sha }}
+        path: ./performance-results/
+        retention-days: 7
+
+  notify-status:
+    name: 📢 Notify Build Status
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test, e2e-test, build, security-scan, validate-manifest, performance-test]
+    if: always()
+    
+    steps:
+    - name: 📢 Notify on success
+      if: ${{ needs.lint-and-format.result == 'success' && needs.test.result == 'success' && needs.build.result == 'success' }}
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: '✅ CI Pipeline passed for ${{ github.ref }}'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        
+    - name: 📢 Notify on failure
+      if: ${{ needs.lint-and-format.result == 'failure' || needs.test.result == 'failure' || needs.build.result == 'failure' }}
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: '❌ CI Pipeline failed for ${{ github.ref }}'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

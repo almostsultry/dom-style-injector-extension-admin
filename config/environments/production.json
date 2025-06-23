@@ -1,0 +1,56 @@
+{
+  "environment": "production",
+  "apiEndpoint": "https://graph.microsoft.com/v1.0",
+  "sharePointSiteUrl": "https://yourtenant.sharepoint.com/sites/customizations",
+  "clientId": "prod-azure-app-client-id",
+  "tenantId": "your-tenant-id",
+  "authority": "https://login.microsoftonline.com/your-tenant-id",
+  "redirectUri": "chrome-extension://prod-extension-id/popup.html",
+  "scopes": [
+    "https://graph.microsoft.com/Sites.ReadWrite.All",
+    "https://graph.microsoft.com/User.Read"
+  ],
+  "logLevel": 1,
+  "enableDebug": false,
+  "enableVerboseLogging": false,
+  "features": {
+    "enableSync": true,
+    "enableApprovalWorkflow": true,
+    "enableAnalytics": true,
+    "enableExperimental": false
+  },
+  "sync": {
+    "autoSyncInterval": 60,
+    "maxRetries": 3,
+    "retryDelay": 1000,
+    "conflictResolution": "remote_wins"
+  },
+  "ui": {
+    "showDebugInfo": false,
+    "enableAnimations": true,
+    "theme": "admin",
+    "showPerformanceMetrics": false
+  },
+  "security": {
+    "enableCSP": true,
+    "strictMode": true,
+    "allowInsecureConnections": false
+  },
+  "monitoring": {
+    "enableErrorReporting": true,
+    "enablePerformanceTracking": true,
+    "sampleRate": 0.1
+  },
+  "performance": {
+    "enableCaching": true,
+    "cacheTimeout": 300000,
+    "maxCacheSize": 50,
+    "enableCompression": true
+  },
+  "compliance": {
+    "enableAuditLogging": true,
+    "retentionPeriod": 2592000000,
+    "enableGDPRMode": true,
+    "dataResidency": "EU"
+  }
+}

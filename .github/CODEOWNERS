@@ -1,0 +1,49 @@
+# Global owners
+
+* @platform-team @admin-tools-team
+
+# Frontend/UI components
+
+src/popup.* @frontend-team @ux-team
+src/styles/ @frontend-team @ux-team
+*.html @frontend-team @ux-team
+*.css @frontend-team @ux-team
+
+# Authentication and security
+
+src/auth/ @security-team @platform-team
+src/background.js @security-team @platform-team
+manifest*.json @security-team @platform-team
+
+# Microsoft Graph integration
+
+src/sync/ @integration-team @platform-team
+src/auth/msal-config.js @integration-team @security-team
+
+# Build and CI/CD
+
+.github/ @devops-team @platform-team
+build/ @devops-team @platform-team
+scripts/ @devops-team @platform-team
+webpack.config.js @devops-team @frontend-team
+package.json @devops-team @platform-team
+
+# Documentation
+
+docs/ @technical-writing-team @platform-team
+README.md @technical-writing-team @platform-team
+CHANGELOG.md @platform-team
+
+# Testing
+
+tests/ @qa-team @platform-team
+*.test.js @qa-team @platform-team
+
+# Configuration and environments
+
+config/ @devops-team @security-team
+security/ @security-team
+
+# User version (requires additional approval)
+
+user-version/ @platform-team @security-team @product-team

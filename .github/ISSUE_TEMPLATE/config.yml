@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/your-org/dom-style-injector-extension-admin/wiki
+    about: Check our comprehensive documentation and guides
+  - name: 💬 Discussions
+    url: https://github.com/your-org/dom-style-injector-extension-admin/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🆘 Enterprise Support
+    url: mailto:admin-support@company.com
+    about: Contact enterprise support for urgent issues
+  - name: 🔒 Security Issues
+    url: mailto:security@company.com
+    about: Report security vulnerabilities (do not use public issues)

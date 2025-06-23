@@ -1,0 +1,403 @@
+{
+  "mockCustomizations": {
+    "ambata.crm.dynamics.com": [
+      {
+        "id": "ambata.crm.dynamics.com_1703123456789",
+        "domain": "ambata.crm.dynamics.com",
+        "queryStrings": {
+          "etn=account&pagetype=entityrecord": {
+            "[data-id=\"editFormRoot\"]": {
+              "background-color": "#90881375",
+              "border": "2px solid #e74c3c"
+            },
+            "[class=\"form-header\"]": {
+              "display": "none"
+            }
+          },
+          "etn=new_deal": {
+            "[data-id=\"dealForm\"]": {
+              "background-color": "#e8f5e8",
+              "padding": "20px"
+            }
+          },
+          "": {
+            "[data-id=\"globalElement\"]": {
+              "color": "#333333",
+              "font-weight": "bold"
+            }
+          }
+        }
+      }
+    ]
+  },
+  
+  "mockSharePointResponses": {
+    "siteInfo": {
+      "id": "mock-site-id-12345",
+      "displayName": "DOM Style Customizations",
+      "webUrl": "https://company.sharepoint.com/sites/customizations",
+      "createdDateTime": "2025-01-01T00:00:00Z"
+    },
+    
+    "listInfo": {
+      "id": "mock-list-id-67890",
+      "displayName": "DOMStyleCustomizations",
+      "description": "Storage for DOM Style Injector customizations",
+      "createdDateTime": "2025-01-01T00:00:00Z"
+    },
+    
+    "customizationItems": {
+      "value": [
+        {
+          "id": "1",
+          "fields": {
+            "Title": "ambata.crm.dynamics.com",
+            "CustomizationData": "{\"domain\":\"ambata.crm.dynamics.com\",\"queryStrings\":{\"etn=account\":{\"[data-id=\\\"editFormRoot\\\"]\": {\"background-color\":\"#90881375\"}}}}",
+            "Version": 1,
+            "IsActive": true,
+            "ApprovalStatus": "Approved",
+            "Category": "UI Enhancement",
+            "Priority": "Medium",
+            "Description": "Background styling for account edit forms"
+          },
+          "createdDateTime": "2025-01-01T00:00:00Z",
+          "lastModifiedDateTime": "2025-01-02T00:00:00Z",
+          "createdBy": {
+            "user": {
+              "displayName": "Admin User"
+            }
+          },
+          "lastModifiedBy": {
+            "user": {
+              "displayName": "Admin User"
+            }
+          }
+        },
+        {
+          "id": "2",
+          "fields": {
+            "Title": "ambata.crm.dynamics.com",
+            "CustomizationData": "{\"domain\":\"ambata.crm.dynamics.com\",\"queryStrings\":{\"etn=deal\":{\"[data-id=\\\"dealForm\\\"]\": {\"color\":\"blue\"}}}}",
+            "Version": 2,
+            "IsActive": true,
+            "ApprovalStatus": "Pending Review",
+            "Category": "Custom",
+            "Priority": "Low",
+            "Description": "Text color for deal forms"
+          },
+          "createdDateTime": "2025-01-01T12:00:00Z",
+          "lastModifiedDateTime": "2025-01-02T12:00:00Z",
+          "createdBy": {
+            "user": {
+              "displayName": "Power User"
+            }
+          },
+          "lastModifiedBy": {
+            "user": {
+              "displayName": "Power User"
+            }
+          }
+        }
+      ]
+    }
+  },
+  
+  "mockAuthResponses": {
+    "loginSuccess": {
+      "account": {
+        "username": "admin@company.com",
+        "name": "Admin User",
+        "tenantId": "test-tenant-id-12345",
+        "homeAccountId": "test-home-account-id"
+      },
+      "accessToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6InU0T2ZORlBId0VBNmhndmd4UjJtZ1Y...",
+      "tokenType": "Bearer",
+      "expiresIn": 3600
+    },
+    
+    "userProfile": {
+      "id": "12345678-1234-1234-1234-123456789012",
+      "displayName": "Admin User",
+      "givenName": "Admin",
+      "surname": "User",
+      "userPrincipalName": "admin@company.com",
+      "mail": "admin@company.com",
+      "jobTitle": "System Administrator",
+      "department": "IT",
+      "companyName": "Company Inc."
+    }
+  },
+  
+  "mockFormData": {
+    "validSubmission": {
+      "elementProperty": "data-id",
+      "propertyValue": "editFormRoot",
+      "cssProperty": "background-color",
+      "cssValue": "#90881375"
+    },
+    
+    "invalidSubmissions": [
+      {
+        "description": "Missing element property",
+        "data": {
+          "elementProperty": "",
+          "propertyValue": "test",
+          "cssProperty": "color",
+          "cssValue": "red"
+        }
+      },
+      {
+        "description": "Invalid CSS property",
+        "data": {
+          "elementProperty": "data-id",
+          "propertyValue": "test",
+          "cssProperty": "invalid-property!",
+          "cssValue": "red"
+        }
+      },
+      {
+        "description": "Empty CSS value",
+        "data": {
+          "elementProperty": "data-id",
+          "propertyValue": "test",
+          "cssProperty": "color",
+          "cssValue": ""
+        }
+      }
+    ]
+  },
+  
+  "mockDOMElements": {
+    "targetElements": [
+      {
+        "type": "data-attribute",
+        "html": "<div data-id=\"editFormRoot\" class=\"form-container\">Form Content</div>",
+        "selector": "[data-id=\"editFormRoot\"]",
+        "expectedMatches": 1
+      },
+      {
+        "type": "class",
+        "html": "<div class=\"form-header\">Header</div><div class=\"form-header secondary\">Secondary Header</div>",
+        "selector": ".form-header",
+        "expectedMatches": 2
+      },
+      {
+        "type": "id",
+        "html": "<div id=\"uniqueElement\">Unique Content</div>",
+        "selector": "#uniqueElement", 
+        "expectedMatches": 1
+      }
+    ],
+    
+    "complexPage": {
+      "html": "<!DOCTYPE html><html><head><title>Test CRM Page</title></head><body><div data-id=\"editFormRoot\" class=\"main-form\"><div class=\"form-header\">Account Details</div><div class=\"form-body\"><input data-id=\"accountName\" type=\"text\" placeholder=\"Account Name\"><input data-id=\"accountEmail\" type=\"email\" placeholder=\"Email\"></div></div><div data-id=\"sidebar\" class=\"sidebar\"><div class=\"nav-item\" data-nav=\"accounts\">Accounts</div><div class=\"nav-item\" data-nav=\"deals\">Deals</div></div></body></html>",
+      "queryParams": "?etn=account&id=12345&pagetype=entityrecord",
+      "expectedElements": {
+        "[data-id=\"editFormRoot\"]": 1,
+        "[data-id=\"accountName\"]": 1,
+        "[data-id=\"accountEmail\"]": 1,
+        ".form-header": 1,
+        ".nav-item": 2
+      }
+    }
+  },
+  
+  "mockQueryParameters": {
+    "accountPage": {
+      "url": "https://ambata.crm.dynamics.com/main.aspx?etn=account&id=12345&pagetype=entityrecord",
+      "parsed": {
+        "etn": "account",
+        "id": "12345",
+        "pagetype": "entityrecord"
+      },
+      "pattern": "etn=account&id=12345&pagetype=entityrecord"
+    },
+    
+    "dealPage": {
+      "url": "https://ambata.crm.dynamics.com/deals?etn=new_deal&status=active",
+      "parsed": {
+        "etn": "new_deal",
+        "status": "active"
+      },
+      "pattern": "etn=new_deal&status=active"
+    },
+    
+    "emptyParams": {
+      "url": "https://ambata.crm.dynamics.com/dashboard",
+      "parsed": {},
+      "pattern": ""
+    }
+  },
+  
+  "mockSyncScenarios": {
+    "bidirectionalSync": {
+      "localData": {
+        "ambata.crm.dynamics.com": [
+          {
+            "id": "local-id-123",
+            "domain": "ambata.crm.dynamics.com",
+            "queryStrings": {
+              "etn=account": {
+                "[data-id=\"localElement\"]": {
+                  "color": "red",
+                  "font-size": "14px"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "remoteData": [
+        {
+          "Id": "remote-id-456",
+          "Title": "ambata.crm.dynamics.com",
+          "CustomizationData": "{\"domain\":\"ambata.crm.dynamics.com\",\"queryStrings\":{\"etn=deal\":{\"[data-id=\\\"remoteElement\\\"]\": {\"background\":\"blue\"}}}}",
+          "Version": 1,
+          "IsActive": true,
+          "Modified": "2025-01-02T00:00:00Z"
+        }
+      ],
+      "expectedMerged": {
+        "ambata.crm.dynamics.com": [
+          {
+            "domain": "ambata.crm.dynamics.com",
+            "queryStrings": {
+              "etn=account": {
+                "[data-id=\"localElement\"]": {
+                  "color": "red",
+                  "font-size": "14px"
+                }
+              },
+              "etn=deal": {
+                "[data-id=\"remoteElement\"]": {
+                  "background": "blue"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    
+    "conflictResolution": {
+      "localNewer": {
+        "localTimestamp": 1704153600000,
+        "remoteTimestamp": 1704067200000,
+        "resolution": "local_wins"
+      },
+      "remoteNewer": {
+        "localTimestamp": 1704067200000,
+        "remoteTimestamp": 1704153600000,
+        "resolution": "remote_wins"
+      }
+    }
+  },
+  
+  "mockErrorScenarios": {
+    "networkErrors": [
+      {
+        "type": "timeout",
+        "message": "Request timed out",
+        "code": "NETWORK_TIMEOUT"
+      },
+      {
+        "type": "offline",
+        "message": "Network unavailable",
+        "code": "NETWORK_OFFLINE"
+      },
+      {
+        "type": "server_error",
+        "message": "Internal server error",
+        "code": "SERVER_ERROR_500"
+      }
+    ],
+    
+    "authErrors": [
+      {
+        "type": "token_expired",
+        "message": "Access token has expired",
+        "code": "EXPIRED_TOKEN"
+      },
+      {
+        "type": "insufficient_permissions",
+        "message": "Insufficient permissions",
+        "code": "PERMISSION_DENIED"
+      },
+      {
+        "type": "user_cancelled",
+        "message": "User cancelled authentication",
+        "code": "USER_CANCELLED"
+      }
+    ],
+    
+    "validationErrors": [
+      {
+        "type": "invalid_selector",
+        "message": "Invalid CSS selector format",
+        "field": "elementProperty"
+      },
+      {
+        "type": "empty_required_field",
+        "message": "Required field cannot be empty",
+        "field": "cssValue"
+      },
+      {
+        "type": "invalid_css_property",
+        "message": "Invalid CSS property name",
+        "field": "cssProperty"
+      }
+    ]
+  },
+  
+  "mockPerformanceData": {
+    "loadTimes": {
+      "popup": {
+        "fast": 150,
+        "acceptable": 500,
+        "slow": 1000
+      },
+      "domInjection": {
+        "fast": 50,
+        "acceptable": 200,
+        "slow": 500
+      },
+      "sync": {
+        "fast": 1000,
+        "acceptable": 3000,
+        "slow": 10000
+      }
+    },
+    
+    "memoryUsage": {
+      "minimal": 5,
+      "typical": 15,
+      "maximum": 50
+    }
+  },
+  
+  "mockBrowserCompatibility": {
+    "supportedBrowsers": [
+      {
+        "name": "Chrome",
+        "minVersion": 88,
+        "features": ["manifestV3", "scripting", "storage"]
+      },
+      {
+        "name": "Edge", 
+        "minVersion": 88,
+        "features": ["manifestV3", "scripting", "storage"]
+      }
+    ],
+    
+    "unsupportedBrowsers": [
+      {
+        "name": "Firefox",
+        "reason": "Manifest V3 limited support"
+      },
+      {
+        "name": "Safari",
+        "reason": "Extension API differences"
+      }
+    ]
+  }
+}

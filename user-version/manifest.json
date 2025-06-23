@@ -1,0 +1,66 @@
+{
+  "manifest_version": 3,
+  "name": "DOM Style Injector - User",
+  "version": "1.0.0",
+  "description": "User extension for applying organization-managed CSS customizations",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://ambata.crm.dynamics.com/*",
+    "https://graph.microsoft.com/*",
+    "https://*.sharepoint.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "DOM Style Injector - User",
+    "default_icon": {
+      "16": "icons/user-icon16.png",
+      "48": "icons/user-icon48.png",
+      "128": "icons/user-icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://ambata.crm.dynamics.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "styles/*.css"
+      ],
+      "matches": ["https://ambata.crm.dynamics.com/*"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://graph.microsoft.com https://*.sharepoint.com;"
+  },
+  "icons": {
+    "16": "icons/user-icon16.png",
+    "48": "icons/user-icon48.png",
+    "128": "icons/user-icon128.png"
+  },
+  "commands": {
+    "toggle-extension": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Toggle DOM Style Injector popup"
+    }
+  },
+  "externally_connectable": {
+    "matches": [
+      "https://ambata.crm.dynamics.com/*"
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "environment": "development",
+  "apiEndpoint": "https://graph.microsoft.com/v1.0",
+  "sharePointSiteUrl": "https://yourtenant.sharepoint.com/sites/dev-customizations",
+  "clientId": "dev-azure-app-client-id",
+  "tenantId": "your-tenant-id",
+  "authority": "https://login.microsoftonline.com/your-tenant-id",
+  "redirectUri": "chrome-extension://dev-extension-id/popup.html",
+  "scopes": [
+    "https://graph.microsoft.com/Sites.ReadWrite.All",
+    "https://graph.microsoft.com/User.Read"
+  ],
+  "logLevel": 3,
+  "enableDebug": true,
+  "enableVerboseLogging": true,
+  "features": {
+    "enableSync": true,
+    "enableApprovalWorkflow": false,
+    "enableAnalytics": false,
+    "enableExperimental": true
+  },
+  "sync": {
+    "autoSyncInterval": 300,
+    "maxRetries": 5,
+    "retryDelay": 2000,
+    "conflictResolution": "newest_wins"
+  },
+  "ui": {
+    "showDebugInfo": true,
+    "enableAnimations": true,
+    "theme": "admin",
+    "showPerformanceMetrics": true
+  },
+  "security": {
+    "enableCSP": true,
+    "strictMode": false,
+    "allowInsecureConnections": true
+  },
+  "monitoring": {
+    "enableErrorReporting": true,
+    "enablePerformanceTracking": true,
+    "sampleRate": 1.0
+  }
+}

@@ -1,0 +1,336 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+        - stable
+        - beta
+        - alpha
+      include_user_version:
+        description: 'Include user version in release'
+        required: true
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  prepare-release:
+    name: 📋 Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      release_notes: ${{ steps.notes.outputs.release_notes }}
+      
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🔧 Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+    - name: 📈 Bump version
+      id: version
+      run: |
+        # Get current version
+        CURRENT_VERSION=$(node -p "require('./package.json').version")
+        echo "Current version: $CURRENT_VERSION"
+        
+        # Bump version based on input
+        NEW_VERSION=$(npm version ${{ github.event.inputs.version_type }} --no-git-tag-version)
+        NEW_VERSION=${NEW_VERSION#v} # Remove 'v' prefix
+        
+        # Add release type suffix if not stable
+        if [ "${{ github.event.inputs.release_type }}" != "stable" ]; then
+          NEW_VERSION="${NEW_VERSION}-${{ github.event.inputs.release_type }}"
+        fi
+        
+        echo "New version: $NEW_VERSION"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        
+        # Update package.json with new version
+        npm version $NEW_VERSION --no-git-tag-version
+        
+    - name: 📝 Generate release notes
+      id: notes
+      run: |
+        # Generate changelog for this release
+        RELEASE_NOTES=$(npm run changelog:generate -- --version ${{ steps.version.outputs.new_version }})
+        
+        # Save to file and output
+        echo "$RELEASE_NOTES" > RELEASE_NOTES.md
+        echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+        echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: 📝 Update CHANGELOG.md
+      run: |
+        npm run changelog:update -- --version ${{ steps.version.outputs.new_version }}
+        
+    - name: 💾 Commit version changes
+      run: |
+        git add package.json CHANGELOG.md
+        git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+        git push origin main
+
+  build-release-artifacts:
+    name: 🏗️ Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: prepare-release
+    
+    strategy:
+      matrix:
+        version: [admin]
+        browser: [chrome, edge]
+        include:
+          - version: user
+            browser: chrome
+            enabled: ${{ github.event.inputs.include_user_version }}
+          - version: user
+            browser: edge
+            enabled: ${{ github.event.inputs.include_user_version }}
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main # Get the updated version
+        
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build ${{ matrix.version }} for ${{ matrix.browser }}
+      run: npm run build:${{ matrix.version }}:${{ matrix.browser }}
+      env:
+        NODE_ENV: production
+        RELEASE_VERSION: ${{ needs.prepare-release.outputs.new_version }}
+        
+    - name: 📦 Package extension
+      run: npm run package:${{ matrix.version }}:${{ matrix.browser }}
+      
+    - name: ✅ Validate package
+      run: |
+        npm run validate:package:${{ matrix.browser }}
+        npm run test:package:${{ matrix.version }}:${{ matrix.browser }}
+        
+    - name: 📊 Upload release artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-${{ matrix.version }}-${{ matrix.browser }}-${{ needs.prepare-release.outputs.new_version }}
+        path: |
+          dist/${{ matrix.version }}/${{ matrix.browser }}/
+          *.zip
+        retention-days: 30
+
+  create-github-release:
+    name: 🚀 Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [prepare-release, build-release-artifacts]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        
+    - name: 📥 Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: ./release-artifacts/
+        
+    - name: 📦 Organize release assets
+      run: |
+        mkdir -p ./release-assets
+        find ./release-artifacts -name "*.zip" -exec cp {} ./release-assets/ \;
+        ls -la ./release-assets/
+        
+    - name: 🏷️ Create Git tag
+      run: |
+        git tag -a "v${{ needs.prepare-release.outputs.new_version }}" -m "Release v${{ needs.prepare-release.outputs.new_version }}"
+        git push origin "v${{ needs.prepare-release.outputs.new_version }}"
+        
+    - name: 🚀 Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ needs.prepare-release.outputs.new_version }}
+        name: Release v${{ needs.prepare-release.outputs.new_version }}
+        body: ${{ needs.prepare-release.outputs.release_notes }}
+        draft: false
+        prerelease: ${{ github.event.inputs.release_type != 'stable' }}
+        files: ./release-assets/*
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-to-stores:
+    name: 🏪 Deploy to Browser Stores
+    runs-on: ubuntu-latest
+    needs: [prepare-release, create-github-release]
+    if: ${{ github.event.inputs.release_type == 'stable' }}
+    
+    steps:
+    - name: 🚀 Trigger Chrome Web Store deployment
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'cd-chrome-store.yml',
+            ref: 'main',
+            inputs: {
+              version_type: 'admin',
+              environment: 'production'
+            }
+          });
+          
+    - name: 🚀 Trigger Edge Add-ons deployment
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'cd-edge-store.yml',
+            ref: 'main',
+            inputs: {
+              version_type: 'admin',
+              environment: 'production'
+            }
+          });
+
+  update-documentation:
+    name: 📚 Update Documentation
+    runs-on: ubuntu-latest
+    needs: [prepare-release, create-github-release]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 📚 Update documentation
+      run: |
+        # Update installation guides with new version
+        npm run docs:update-version -- ${{ needs.prepare-release.outputs.new_version }}
+        
+        # Update API documentation
+        npm run docs:generate-api
+        
+        # Update README badges and links
+        npm run docs:update-badges
+        
+    - name: 💾 Commit documentation updates
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        if [ -n "$(git status --porcelain)" ]; then
+          git add docs/ README.md
+          git commit -m "docs: update documentation for v${{ needs.prepare-release.outputs.new_version }}"
+          git push origin main
+        fi
+
+  notify-stakeholders:
+    name: 📢 Notify Stakeholders
+    runs-on: ubuntu-latest
+    needs: [prepare-release, create-github-release, deploy-to-stores]
+    if: always()
+    
+    steps:
+    - name: 📢 Notify success
+      if: ${{ needs.create-github-release.result == 'success' }}
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: |
+          🚀 New release published: v${{ needs.prepare-release.outputs.new_version }}
+          
+          📦 GitHub Release: ${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ needs.prepare-release.outputs.new_version }}
+          🏪 Chrome Web Store: Deployment in progress
+          🏪 Edge Add-ons: Deployment in progress
+          
+          Release Type: ${{ github.event.inputs.release_type }}
+          Include User Version: ${{ github.event.inputs.include_user_version }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        
+    - name: 📢 Notify failure
+      if: ${{ needs.create-github-release.result == 'failure' }}
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: |
+          ❌ Release creation failed for v${{ needs.prepare-release.outputs.new_version }}
+          
+          Please check the GitHub Actions logs for details.
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        
+    - name: 📧 Send email notification
+      if: ${{ needs.create-github-release.result == 'success' && github.event.inputs.release_type == 'stable' }}
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.company.com
+        server_port: 587
+        username: ${{ secrets.SMTP_USERNAME }}
+        password: ${{ secrets.SMTP_PASSWORD }}
+        subject: 'DOM Style Injector Extension - New Release v${{ needs.prepare-release.outputs.new_version }}'
+        to: it-admins@company.com,extension-users@company.com
+        from: 'GitHub Actions <github-actions@company.com>'
+        body: |
+          A new version of the DOM Style Injector Extension has been released.
+          
+          Version: ${{ needs.prepare-release.outputs.new_version }}
+          Release Type: ${{ github.event.inputs.release_type }}
+          
+          Download: ${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ needs.prepare-release.outputs.new_version }}
+          
+          ${{ needs.prepare-release.outputs.release_notes }}

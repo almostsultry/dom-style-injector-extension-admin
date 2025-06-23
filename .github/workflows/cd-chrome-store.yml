@@ -1,0 +1,225 @@
+name: Deploy to Chrome Web Store
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type to deploy'
+        required: true
+        default: 'admin'
+        type: choice
+        options:
+        - admin
+        - user
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - staging
+        - production
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  deploy-chrome-admin:
+    name: 🚀 Deploy Admin Version to Chrome Web Store
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.version_type == 'admin' || github.event_name == 'release' }}
+    environment: 
+      name: chrome-web-store-admin
+      url: https://chrome.google.com/webstore/detail/dom-style-injector-admin
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🔧 Configure environment
+      run: |
+        echo "Building for environment: ${{ github.event.inputs.environment || 'production' }}"
+        cp config/environments/${{ github.event.inputs.environment || 'production' }}.json config/current-env.json
+        
+    - name: 🏗️ Build admin extension
+      run: npm run build:admin:chrome
+      env:
+        NODE_ENV: production
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+        
+    - name: 📦 Package extension
+      run: npm run package:admin:chrome
+      
+    - name: ✅ Validate extension
+      run: |
+        npm run validate:package:chrome
+        npm run test:extension:chrome
+        
+    - name: 🔐 Prepare Chrome Web Store credentials
+      env:
+        CHROME_EXTENSION_ID: ${{ secrets.CHROME_ADMIN_EXTENSION_ID }}
+        CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+        CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+        CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+      run: |
+        echo "CHROME_EXTENSION_ID=$CHROME_EXTENSION_ID" >> $GITHUB_ENV
+        echo "Setting up Chrome Web Store API credentials..."
+        
+    - name: 🚀 Upload to Chrome Web Store
+      uses: mnao305/chrome-extension-upload@v4.0.1
+      with:
+        file-path: ./dist/admin/chrome/dom-style-injector-admin.zip
+        extension-id: ${{ secrets.CHROME_ADMIN_EXTENSION_ID }}
+        client-id: ${{ secrets.CHROME_CLIENT_ID }}
+        client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+        refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        publish: ${{ github.event.inputs.environment == 'production' || github.event_name == 'release' }}
+        
+    - name: 📊 Create deployment record
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const package = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+          
+          github.rest.repos.createDeployment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: context.sha,
+            environment: 'chrome-web-store-admin',
+            description: `Admin v${package.version} deployed to Chrome Web Store`,
+            auto_merge: false
+          });
+          
+    - name: 📢 Notify deployment success
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: '🚀 Admin extension deployed to Chrome Web Store'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  deploy-chrome-user:
+    name: 🚀 Deploy User Version to Chrome Web Store
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.version_type == 'user' }}
+    environment: 
+      name: chrome-web-store-user
+      url: https://chrome.google.com/webstore/detail/dom-style-injector-user
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🔧 Configure environment
+      run: |
+        echo "Building user version for environment: ${{ github.event.inputs.environment || 'production' }}"
+        cp config/environments/${{ github.event.inputs.environment || 'production' }}.json config/current-env.json
+        
+    - name: 🏗️ Build user extension
+      run: npm run build:user:chrome
+      env:
+        NODE_ENV: production
+        ENVIRONMENT: ${{ github.event.inputs.environment || 'production' }}
+        
+    - name: 📦 Package extension
+      run: npm run package:user:chrome
+      
+    - name: ✅ Validate extension
+      run: |
+        npm run validate:package:chrome
+        npm run test:extension:chrome
+        
+    - name: 🚀 Upload to Chrome Web Store
+      uses: mnao305/chrome-extension-upload@v4.0.1
+      with:
+        file-path: ./dist/user/chrome/dom-style-injector-user.zip
+        extension-id: ${{ secrets.CHROME_USER_EXTENSION_ID }}
+        client-id: ${{ secrets.CHROME_CLIENT_ID }}
+        client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+        refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        publish: ${{ github.event.inputs.environment == 'production' }}
+        
+    - name: 📢 Notify deployment success
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: '🚀 User extension deployed to Chrome Web Store'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  post-deployment-tests:
+    name: 🧪 Post-Deployment Verification
+    runs-on: ubuntu-latest
+    needs: [deploy-chrome-admin, deploy-chrome-user]
+    if: always() && (needs.deploy-chrome-admin.result == 'success' || needs.deploy-chrome-user.result == 'success')
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🧪 Run post-deployment tests
+      run: npm run test:post-deployment:chrome
+      env:
+        CHROME_EXTENSION_ID_ADMIN: ${{ secrets.CHROME_ADMIN_EXTENSION_ID }}
+        CHROME_EXTENSION_ID_USER: ${{ secrets.CHROME_USER_EXTENSION_ID }}
+        
+    - name: 📊 Monitor extension metrics
+      run: npm run monitor:chrome-metrics
+      
+    - name: 📢 Report deployment status
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const deploymentStatus = {
+            admin: '${{ needs.deploy-chrome-admin.result }}',
+            user: '${{ needs.deploy-chrome-user.result }}',
+            timestamp: new Date().toISOString(),
+            environment: (() => {
+              if (process.env.GITHUB_EVENT_NAME === 'release') return 'production';
+              if (process.env.INPUT_ENVIRONMENT && process.env.INPUT_ENVIRONMENT !== '') return process.env.INPUT_ENVIRONMENT;
+              return 'production';
+            })()
+          };
+          
+          console.log('Deployment Status:', deploymentStatus);
+          
+          // Create issue if deployment failed
+          if (deploymentStatus.admin === 'failure' || deploymentStatus.user === 'failure') {
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Chrome Web Store Deployment Failed',
+              body: `Deployment failed with status: ${JSON.stringify(deploymentStatus, null, 2)}`,
+              labels: ['deployment', 'bug', 'chrome-web-store']
+            });
+          }

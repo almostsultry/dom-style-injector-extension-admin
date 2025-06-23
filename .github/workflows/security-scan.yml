@@ -1,0 +1,371 @@
+name: Security Vulnerability Scanning
+
+on:
+  schedule:
+    # Run every day at 2 AM UTC
+    - cron: '0 2 * * *'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+      - '.github/workflows/security-scan.yml'
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  dependency-scan:
+    name: 🔍 Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🔍 Run npm audit
+      run: |
+        npm audit --audit-level high --json > npm-audit-results.json || true
+        npm audit --audit-level high
+        
+    - name: 📊 Upload npm audit results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: npm-audit-results
+        path: npm-audit-results.json
+        retention-days: 30
+        
+    - name: 🔍 Run Snyk security scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high --json > snyk-results.json
+        
+    - name: 📊 Upload Snyk results to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: snyk.sarif
+
+  code-security-scan:
+    name: 🔒 Code Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+      
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔍 Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: javascript
+        queries: security-extended,security-and-quality
+        
+    - name: 🏗️ Autobuild
+      uses: github/codeql-action/autobuild@v2
+      
+    - name: 🔍 Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:javascript"
+
+  container-scan:
+    name: 🐳 Container Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔍 Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+        
+    - name: 📊 Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  secret-scan:
+    name: 🔐 Secret Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🔍 Run GitLeaks secret detection
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        
+    - name: 🔍 Run TruffleHog secret scan
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+  license-compliance:
+    name: 📄 License Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 📄 Check license compliance
+      run: |
+        npx license-checker --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;0BSD" --excludePrivatePackages --json > license-report.json
+        
+    - name: 📊 Upload license report
+      uses: actions/upload-artifact@v3
+      with:
+        name: license-compliance-report
+        path: license-report.json
+        retention-days: 30
+
+  extension-security-audit:
+    name: 🔧 Extension Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: 📋 Install dependencies
+      run: npm ci
+      
+    - name: 🏗️ Build extension
+      run: npm run build:admin
+      
+    - name: 🔍 Audit extension permissions
+      run: |
+        node scripts/audit-permissions.js > permission-audit.txt
+        cat permission-audit.txt
+        
+    - name: 🔍 Check for dangerous patterns
+      run: |
+        echo "Checking for dangerous patterns in code..."
+        
+        # Check for eval usage
+        if grep -r "eval(" src/; then
+          echo "❌ Found eval() usage - security risk"
+          exit 1
+        fi
+        
+        # Check for innerHTML usage without sanitization
+        if grep -r "innerHTML" src/ | grep -v "sanitize"; then
+          echo "⚠️ Found innerHTML usage - review for XSS risks"
+        fi
+        
+        # Check for external script loading
+        if grep -r "createElement.*script" src/; then
+          echo "❌ Found dynamic script creation - security risk"
+          exit 1
+        fi
+        
+        # Check for broad permissions
+        if grep -r "://\*/" src/manifest*.json; then
+          echo "⚠️ Found broad host permissions - review necessity"
+        fi
+        
+        echo "✅ Security pattern check completed"
+        
+    - name: 🔍 Content Security Policy validation
+      run: |
+        node scripts/validate-csp.js
+        
+    - name: 📊 Generate security report
+      run: |
+        echo "# Extension Security Audit Report" > security-audit-report.md
+        echo "" >> security-audit-report.md
+        echo "## Permissions Analysis" >> security-audit-report.md
+        cat permission-audit.txt >> security-audit-report.md
+        echo "" >> security-audit-report.md
+        echo "## Content Security Policy" >> security-audit-report.md
+        cat csp-validation.txt >> security-audit-report.md
+        
+    - name: 📊 Upload security audit report
+      uses: actions/upload-artifact@v3
+      with:
+        name: extension-security-audit
+        path: |
+          security-audit-report.md
+          permission-audit.txt
+          csp-validation.txt
+        retention-days: 30
+
+  malware-scan:
+    name: 🦠 Malware Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔍 Run ClamAV malware scan
+      run: |
+        sudo apt-get update
+        sudo apt-get install clamav clamav-daemon
+        sudo freshclam
+        clamscan -r . --exclude-dir=node_modules --exclude-dir=.git
+        
+    - name: 🔍 Run YARA rules scan
+      run: |
+        sudo apt-get install yara
+        
+        # Download common malware detection rules
+        wget -O malware-rules.yar https://raw.githubusercontent.com/Yara-Rules/rules/master/malware/APT_APT1.yar
+        
+        # Scan for malware patterns
+        yara malware-rules.yar . || echo "No malware patterns detected"
+
+  security-report:
+    name: 📋 Security Summary Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, code-security-scan, container-scan, secret-scan, license-compliance, extension-security-audit, malware-scan]
+    if: always()
+    
+    steps:
+    - name: 📥 Download all artifacts
+      uses: actions/download-artifact@v3
+      
+    - name: 📋 Generate security summary
+      run: |
+        echo "# Security Scan Summary Report" > security-summary.md
+        echo "" >> security-summary.md
+        echo "Generated on: $(date)" >> security-summary.md
+        echo "" >> security-summary.md
+        
+        echo "## Scan Results" >> security-summary.md
+        echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> security-summary.md
+        echo "- Code Security: ${{ needs.code-security-scan.result }}" >> security-summary.md
+        echo "- Container Scan: ${{ needs.container-scan.result }}" >> security-summary.md
+        echo "- Secret Detection: ${{ needs.secret-scan.result }}" >> security-summary.md
+        echo "- License Compliance: ${{ needs.license-compliance.result }}" >> security-summary.md
+        echo "- Extension Audit: ${{ needs.extension-security-audit.result }}" >> security-summary.md
+        echo "- Malware Scan: ${{ needs.malware-scan.result }}" >> security-summary.md
+        echo "" >> security-summary.md
+        
+        # Check if any critical issues found
+        if [[ "${{ needs.dependency-scan.result }}" == "failure" || 
+              "${{ needs.code-security-scan.result }}" == "failure" || 
+              "${{ needs.secret-scan.result }}" == "failure" || 
+              "${{ needs.extension-security-audit.result }}" == "failure" ]]; then
+          echo "## ❌ CRITICAL SECURITY ISSUES FOUND" >> security-summary.md
+          echo "Immediate attention required!" >> security-summary.md
+        else
+          echo "## ✅ All Security Scans Passed" >> security-summary.md
+        fi
+        
+    - name: 📊 Upload security summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-summary-report
+        path: security-summary.md
+        retention-days: 90
+        
+    - name: 📢 Create security issue if failures found
+      if: |
+        needs.dependency-scan.result == 'failure' || 
+        needs.code-security-scan.result == 'failure' || 
+        needs.secret-scan.result == 'failure' || 
+        needs.extension-security-audit.result == 'failure' ||
+        needs.malware-scan.result == 'failure'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const issueBody = `
+          ## 🚨 Security Scan Failures Detected
+          
+          One or more security scans have failed. Please review immediately.
+          
+          ### Scan Results:
+          - Dependency Scan: ${{ needs.dependency-scan.result }}
+          - Code Security: ${{ needs.code-security-scan.result }}
+          - Container Scan: ${{ needs.container-scan.result }}
+          - Secret Detection: ${{ needs.secret-scan.result }}
+          - License Compliance: ${{ needs.license-compliance.result }}
+          - Extension Audit: ${{ needs.extension-security-audit.result }}
+          - Malware Scan: ${{ needs.malware-scan.result }}
+          
+          ### Action Required:
+          1. Review the detailed scan results in the Actions artifacts
+          2. Fix any identified vulnerabilities
+          3. Re-run the security scans
+          
+          **This issue was automatically created by the security scanning workflow.**
+          `;
+          
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🚨 Security Scan Failures - ${new Date().toISOString().split('T')[0]}`,
+            body: issueBody,
+            labels: ['security', 'urgent', 'automated']
+          });
+          
+    - name: 📢 Notify security team
+      if: |
+        needs.dependency-scan.result == 'failure' || 
+        needs.secret-scan.result == 'failure' || 
+        needs.extension-security-audit.result == 'failure'
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: |
+          🚨 SECURITY ALERT: Critical security issues detected in DOM Style Injector Extension
+          
+          Failed scans: 
+          - Dependencies: ${{ needs.dependency-scan.result }}
+          - Secrets: ${{ needs.secret-scan.result }}
+          - Extension Audit: ${{ needs.extension-security-audit.result }}
+          
+          Please review immediately: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SECURITY_SLACK_WEBHOOK_URL }}
