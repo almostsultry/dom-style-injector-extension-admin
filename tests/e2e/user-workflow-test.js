@@ -1,428 +1,391 @@
-// End-to-end tests for user version workflow using Playwright
-import { test, expect } from '@playwright/test';
-import path from 'path';
+// tests/e2e/user-workflow.test.js
+const puppeteer = require('puppeteer');
+const path = require('path');
+const fs = require('fs').promises;
 
-const userExtensionPath = path.join(__dirname, '../../dist/user/chrome');
+describe('D365 DOM Style Injector - User Workflow Tests', () => {
+    let browser;
+    let page;
+    let extensionId;
 
-test.describe('User Version E2E Tests', () => {
-  let context;
-  let extensionId;
+    // Extension paths
+    const userExtensionPath = path.join(__dirname, '../../dist/user');
+    const testD365Url = process.env.TEST_D365_URL || 'https://test.dynamics.com';
 
-  test.beforeEach(async ({ browser }) => {
-    // Load user extension
-    context = await browser.newContext({
-      args: [
-        `--disable-extensions-except=${userExtensionPath}`,
-        `--load-extension=${userExtensionPath}`,
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor'
-      ]
-    });
-
-    // Get extension ID
-    const extensionPage = await context.newPage();
-    await extensionPage.goto('chrome://extensions/');
-    
-    const extensionCard = await extensionPage.locator('[id*="DOM Style Injector"]').first();
-    extensionId = await extensionCard.getAttribute('id');
-  });
-
-  test.afterEach(async () => {
-    await context.close();
-  });
-
-  test('should load user extension popup successfully', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-
-    // Check that popup loads with user-specific content
-    await expect(page.locator('h1')).toContainText('DOM Style Injector');
-    
-    // User version should NOT have form for creating customizations
-    await expect(page.locator('#styleForm')).not.toBeVisible();
-    
-    // Should show read-only status or sync information
-    await expect(page.locator('.sync-status, .customization-list')).toBeVisible();
-  });
-
-  test('should display available customizations for current page', async () => {
-    // Mock available customizations in storage
-    const page = await context.newPage();
-    
-    // Navigate to target domain first
-    await page.goto('https://ambata.crm.dynamics.com/test?etn=account&id=123');
-    
-    // Open extension popup
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-    
-    // Should show available customizations for this page
-    await expect(page.locator('.available-customizations')).toBeVisible();
-    
-    // Should show toggle controls for enabling/disabling customizations
-    await expect(page.locator('.customization-toggle')).toBeVisible();
-  });
-
-  test('should allow users to enable/disable customizations', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-
-    // Mock having customizations available
-    await page.evaluate(() => {
-      const mockCustomizations = [
-        {
-          id: 'custom-1',
-          name: 'Form Background Enhancement',
-          description: 'Improves form visibility',
-          enabled: false
-        },
-        {
-          id: 'custom-2', 
-          name: 'Hide Distracting Elements',
-          description: 'Removes unnecessary UI elements',
-          enabled: true
-        }
-      ];
-      
-      // Inject mock data into page
-      window.mockCustomizations = mockCustomizations;
-    });
-
-    // Reload to apply mock data
-    await page.reload();
-
-    // Find toggle switches
-    const toggles = page.locator('.customization-toggle');
-    
-    // Should have toggle controls
-    expect(await toggles.count()).toBeGreaterThan(0);
-    
-    // Test enabling a customization
-    const firstToggle = toggles.first();
-    await firstToggle.click();
-    
-    // Should show confirmation or status change
-    await expect(page.locator('.status-message')).toBeVisible();
-  });
-
-  test('should sync customizations from central repository', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-
-    // Look for sync button or automatic sync indicator
-    const syncButton = page.locator('#syncBtn, .sync-now');
-    
-    if (await syncButton.isVisible()) {
-      // Mock successful sync response
-      await page.route('**/sharepoint/**', (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            value: [
-              {
-                id: '1',
-                fields: {
-                  Title: 'ambata.crm.dynamics.com',
-                  CustomizationData: JSON.stringify({
-                    queryStrings: {
-                      'etn=account': {
-                        '[data-id="editFormRoot"]': {
-                          'background-color': '#e8f5e8'
-                        }
-                      }
-                    }
-                  }),
-                  IsActive: true,
-                  ApprovalStatus: 'Approved'
-                }
-              }
+    beforeAll(async () => {
+        // Launch browser with extension loaded
+        browser = await puppeteer.launch({
+            headless: process.env.CI === 'true', // Headless in CI
+            args: [
+                `--disable-extensions-except=${userExtensionPath}`,
+                `--load-extension=${userExtensionPath}`,
+                '--no-sandbox',
+                '--disable-setuid-sandbox'
             ]
-          })
         });
-      });
 
-      await syncButton.click();
-      
-      // Should show sync status
-      await expect(page.locator('.sync-status')).toContainText(/Syncing|Sync complete/);
-    }
-  });
+        // Get extension ID
+        const extensionTarget = await browser.waitForTarget(
+            target => target.type() === 'service_worker'
+        );
+        const extensionUrl = extensionTarget.url();
+        [, , extensionId] = extensionUrl.split('/');
 
-  test('should apply customizations automatically on target pages', async () => {
-    // Create a test page that simulates the CRM
-    const testPage = await context.newPage();
-    await testPage.setContent(`
-      <!DOCTYPE html>
-      <html>
-      <head><title>Test CRM Page</title></head>
-      <body>
-        <div data-id="editFormRoot" style="background-color: white;">
-          Test Form Root Element
-        </div>
-        <div data-id="testElement">Test Element</div>
-      </body>
-      </html>
-    `);
+        page = await browser.newPage();
+    }, 30000);
 
-    // Mock the domain by intercepting requests
-    await testPage.route('**/*', (route) => {
-      const url = new URL(route.request().url());
-      if (url.hostname === 'ambata.crm.dynamics.com') {
-        route.continue();
-      } else {
-        route.continue();
-      }
+    afterAll(async () => {
+        await browser.close();
     });
 
-    // Mock extension storage with active customizations
-    await testPage.addInitScript(() => {
-      window.chrome = {
-        storage: {
-          local: {
-            get: () => Promise.resolve({
-              customizations: {
-                'ambata.crm.dynamics.com': [{
-                  domain: 'ambata.crm.dynamics.com',
-                  queryStrings: {
-                    '': {
-                      '[data-id="editFormRoot"]': {
-                        'background-color': '#e8f5e8'
-                      }
+    beforeEach(async () => {
+        await page.goto('about:blank');
+    });
+
+    describe('Extension Loading', () => {
+        test('should load extension successfully', async () => {
+            const extensionPopup = `chrome-extension://${extensionId}/popup.html`;
+            await page.goto(extensionPopup);
+
+            // Check if popup loads
+            const title = await page.title();
+            expect(title).toBe('DOM Style Injector - User');
+
+            // Check for main UI elements
+            const syncButton = await page.$('#sync-button');
+            expect(syncButton).toBeTruthy();
+        });
+
+        test('should display read-only interface', async () => {
+            const extensionPopup = `chrome-extension://${extensionId}/popup.html`;
+            await page.goto(extensionPopup);
+
+            // Check that create/edit buttons are not present
+            const createButton = await page.$('#create-customization');
+            const editButtons = await page.$$('.edit-button');
+
+            expect(createButton).toBeFalsy();
+            expect(editButtons.length).toBe(0);
+        });
+    });
+
+    describe('Synchronization', () => {
+        test('should sync customizations from SharePoint', async () => {
+            const extensionPopup = `chrome-extension://${extensionId}/popup.html`;
+            await page.goto(extensionPopup);
+
+            // Mock successful sync response
+            await page.evaluateOnNewDocument(() => {
+                window.chrome = {
+                    storage: {
+                        local: {
+                            get: (keys, callback) => callback({ customizations: [] }),
+                            set: (items, callback) => callback && callback()
+                        },
+                        sync: {
+                            get: (keys, callback) => callback({ lastSync: null }),
+                            set: (items, callback) => callback && callback()
+                        }
+                    },
+                    runtime: {
+                        sendMessage: (message, callback) => {
+                            if (message.action === 'sync') {
+                                callback({
+                                    success: true,
+                                    customizations: [
+                                        {
+                                            id: 'test-1',
+                                            name: 'Test Customization',
+                                            domain: '*.dynamics.com',
+                                            targetElement: '[data-id="form-header"]',
+                                            cssProperty: 'background-color',
+                                            cssValue: '#f0f0f0',
+                                            isActive: true,
+                                            publishedAt: new Date().toISOString(),
+                                            publishedBy: 'admin@company.com'
+                                        }
+                                    ]
+                                });
+                            }
+                        }
                     }
-                  }
-                }]
-              }
-            })
-          }
-        }
-      };
-    });
+                };
+            });
 
-    // Wait for potential style application
-    await testPage.waitForTimeout(1000);
+            await page.goto(extensionPopup);
 
-    // Check if styles were applied (this would need content script to be active)
-    const targetElement = testPage.locator('[data-id="editFormRoot"]');
-    
-    // Note: In real extension environment, styles would be applied by content script
-    // This test verifies the structure is in place for style application
-    await expect(targetElement).toBeVisible();
-  });
+            // Click sync button
+            await page.click('#sync-button');
 
-  test('should handle authentication for sync', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
+            // Wait for sync to complete
+            await page.waitForSelector('.customization-item', { timeout: 5000 });
 
-    // Look for authentication section
-    const authSection = page.locator('.auth-section, #authSection');
-    
-    if (await authSection.isVisible()) {
-      // Should show authentication status
-      await expect(page.locator('.auth-status')).toBeVisible();
-      
-      // For user version, authentication might be automatic or simplified
-      const loginButton = page.locator('#loginBtn, .login-button');
-      
-      if (await loginButton.isVisible()) {
-        // Mock authentication flow
-        await page.route('**/oauth/**', (route) => {
-          route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              access_token: 'mock-token',
-              token_type: 'Bearer'
-            })
-          });
+            // Verify customization appears
+            const customizations = await page.$$('.customization-item');
+            expect(customizations.length).toBe(1);
+
+            const customizationName = await page.$eval(
+                '.customization-item .customization-name',
+                el => el.textContent
+            );
+            expect(customizationName).toBe('Test Customization');
         });
 
-        await loginButton.click();
-        
-        // Should show authentication success
-        await expect(page.locator('.auth-status')).toContainText(/Authenticated|Connected/);
-      }
-    }
-  });
+        test('should show sync status indicators', async () => {
+            const extensionPopup = `chrome-extension://${extensionId}/popup.html`;
+            await page.goto(extensionPopup);
 
-  test('should display customization information and descriptions', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
+            // Check initial sync status
+            const syncStatus = await page.$eval('#sync-status', el => el.textContent);
+            expect(syncStatus).toContain('Never synced');
 
-    // Mock customizations with metadata
-    await page.evaluate(() => {
-      const mockCustomizations = [
-        {
-          id: 'enhancement-1',
-          name: 'Form Visibility Enhancement',
-          description: 'Improves form readability with better background colors',
-          category: 'UI Enhancement',
-          approvedBy: 'IT Admin',
-          lastUpdated: '2025-01-15'
-        }
-      ];
-      
-      window.mockCustomizations = mockCustomizations;
-    });
+            // Trigger sync
+            await page.click('#sync-button');
 
-    await page.reload();
-
-    // Should show customization details
-    await expect(page.locator('.customization-name')).toBeVisible();
-    await expect(page.locator('.customization-description')).toBeVisible();
-    
-    // Should show metadata like approval status
-    await expect(page.locator('.customization-meta')).toBeVisible();
-  });
-
-  test('should handle offline scenarios gracefully', async () => {
-    const page = await context.newPage();
-    
-    // Simulate offline network
-    await page.context().setOffline(true);
-    
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-
-    // Should handle offline gracefully
-    await expect(page.locator('.offline-notice, .sync-error')).toBeVisible();
-    
-    // Should still show cached customizations if available
-    await expect(page.locator('.cached-customizations')).toBeVisible();
-  });
-
-  test('should respect user preferences for customization application', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-
-    // Look for preferences or settings section
-    const settingsButton = page.locator('#settingsBtn, .settings-button');
-    
-    if (await settingsButton.isVisible()) {
-      await settingsButton.click();
-      
-      // Should show preference controls
-      await expect(page.locator('.preference-controls')).toBeVisible();
-      
-      // Test toggling global enable/disable
-      const globalToggle = page.locator('#globalEnable');
-      if (await globalToggle.isVisible()) {
-        await globalToggle.click();
-        
-        // Should save preference
-        await expect(page.locator('.preference-saved')).toBeVisible();
-      }
-    }
-  });
-
-  test('should provide feedback mechanism for customizations', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-
-    // Look for feedback controls
-    const feedbackButton = page.locator('.feedback-button, #feedbackBtn');
-    
-    if (await feedbackButton.isVisible()) {
-      await feedbackButton.click();
-      
-      // Should show feedback form
-      await expect(page.locator('.feedback-form')).toBeVisible();
-      
-      // Test submitting feedback
-      await page.fill('.feedback-text', 'This customization is very helpful!');
-      await page.click('.submit-feedback');
-      
-      // Should show confirmation
-      await expect(page.locator('.feedback-submitted')).toBeVisible();
-    }
-  });
-
-  test('should handle version compatibility checks', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-
-    // Mock version compatibility check
-    await page.route('**/version-check**', (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          currentVersion: '1.0.0',
-          latestVersion: '1.1.0',
-          updateAvailable: true,
-          compatibilityStatus: 'compatible'
-        })
-      });
-    });
-
-    // Trigger version check
-    const versionCheck = page.locator('#checkVersion');
-    if (await versionCheck.isVisible()) {
-      await versionCheck.click();
-      
-      // Should show version information
-      await expect(page.locator('.version-info')).toBeVisible();
-    }
-  });
-
-  test('should be accessible via keyboard navigation', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-
-    // Test keyboard navigation
-    await page.keyboard.press('Tab');
-    
-    // Should focus on first interactive element
-    const focusedElement = page.locator(':focus');
-    await expect(focusedElement).toBeVisible();
-    
-    // Continue tabbing through interface
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    
-    // Should be able to activate controls with Enter/Space
-    await page.keyboard.press('Enter');
-    
-    // Should respond to keyboard interaction
-    // (Specific assertions depend on the actual UI elements)
-  });
-
-  test('should display proper error messages for common issues', async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-
-    // Test various error scenarios
-    const errorScenarios = [
-      {
-        scenario: 'Network error',
-        mockResponse: { status: 500, body: 'Server Error' },
-        expectedMessage: /network|server|connection/i
-      },
-      {
-        scenario: 'Authentication error', 
-        mockResponse: { status: 401, body: 'Unauthorized' },
-        expectedMessage: /authentication|login|unauthorized/i
-      },
-      {
-        scenario: 'Permission error',
-        mockResponse: { status: 403, body: 'Forbidden' },
-        expectedMessage: /permission|access|forbidden/i
-      }
-    ];
-    for (const { scenario, mockResponse, expectedMessage } of errorScenarios) {
-      await page.route('**/*', (route) => {
-        route.fulfill({
-          status: mockResponse.status,
-          contentType: 'application/json',
-          body: JSON.stringify(mockResponse.body)
+            // Check syncing status
+            await page.waitForSelector('#sync-status:not(:empty)');
+            const syncingStatus = await page.$eval('#sync-status', el => el.textContent);
+            expect(syncingStatus).toContain('Syncing');
         });
-      });
+    });
 
-      // Trigger the scenario
-      await page.goto(`chrome-extension://${extensionId}/popup.html`);
+    describe('Customization Application', () => {
+        test('should apply active customizations to D365 pages', async () => {
+            // Set up test customization
+            await page.evaluateOnNewDocument(() => {
+                window.chrome = {
+                    storage: {
+                        local: {
+                            get: (keys, callback) => callback({
+                                customizations: [{
+                                    id: 'test-1',
+                                    name: 'Header Color',
+                                    domain: '*.dynamics.com',
+                                    targetElement: '[data-id="form-header"]',
+                                    cssProperty: 'background-color',
+                                    cssValue: 'rgb(240, 240, 240)',
+                                    isActive: true
+                                }]
+                            })
+                        }
+                    }
+                };
+            });
 
-      // Should show appropriate error message
-      await expect(page.locator('.error-message')).toContainText(expectedMessage);
-    }
-  });
+            // Navigate to test D365 page
+            await page.goto(testD365Url);
+
+            // Wait for content script to apply styles
+            await page.waitForTimeout(2000);
+
+            // Check if style was applied
+            const headerBgColor = await page.$eval(
+                '[data-id="form-header"]',
+                el => window.getComputedStyle(el).backgroundColor
+            );
+
+            expect(headerBgColor).toBe('rgb(240, 240, 240)');
+        });
+
+        test('should not apply inactive customizations', async () => {
+            // Set up test customization (inactive)
+            await page.evaluateOnNewDocument(() => {
+                window.chrome = {
+                    storage: {
+                        local: {
+                            get: (keys, callback) => callback({
+                                customizations: [{
+                                    id: 'test-2',
+                                    name: 'Inactive Style',
+                                    domain: '*.dynamics.com',
+                                    targetElement: '[data-id="form-footer"]',
+                                    cssProperty: 'background-color',
+                                    cssValue: 'rgb(255, 0, 0)',
+                                    isActive: false
+                                }]
+                            })
+                        }
+                    }
+                };
+            });
+
+            // Navigate to test D365 page
+            await page.goto(testD365Url);
+
+            // Wait for potential style application
+            await page.waitForTimeout(2000);
+
+            // Check that style was NOT applied
+            const footerBgColor = await page.$eval(
+                '[data-id="form-footer"]',
+                el => window.getComputedStyle(el).backgroundColor
+            );
+
+            expect(footerBgColor).not.toBe('rgb(255, 0, 0)');
+        });
+    });
+
+    describe('Toggle Functionality', () => {
+        test('should toggle customizations on/off', async () => {
+            const extensionPopup = `chrome-extension://${extensionId}/popup.html`;
+
+            // Set up test data
+            await page.evaluateOnNewDocument(() => {
+                window.chrome = {
+                    storage: {
+                        local: {
+                            get: (keys, callback) => callback({
+                                customizations: [{
+                                    id: 'test-3',
+                                    name: 'Toggle Test',
+                                    domain: '*.dynamics.com',
+                                    targetElement: '[data-id="test-element"]',
+                                    cssProperty: 'color',
+                                    cssValue: 'blue',
+                                    isActive: true
+                                }]
+                            }),
+                            set: (items, callback) => callback && callback()
+                        }
+                    },
+                    runtime: {
+                        sendMessage: () => { }
+                    }
+                };
+            });
+
+            await page.goto(extensionPopup);
+
+            // Wait for customization to load
+            await page.waitForSelector('.customization-item');
+
+            // Check initial toggle state
+            const initialToggleState = await page.$eval(
+                '.toggle-switch input',
+                el => el.checked
+            );
+            expect(initialToggleState).toBe(true);
+
+            // Click toggle
+            await page.click('.toggle-switch input');
+
+            // Check new toggle state
+            const newToggleState = await page.$eval(
+                '.toggle-switch input',
+                el => el.checked
+            );
+            expect(newToggleState).toBe(false);
+        });
+    });
+
+    describe('Error Handling', () => {
+        test('should handle sync failures gracefully', async () => {
+            const extensionPopup = `chrome-extension://${extensionId}/popup.html`;
+
+            // Mock sync failure
+            await page.evaluateOnNewDocument(() => {
+                window.chrome = {
+                    storage: {
+                        local: {
+                            get: (keys, callback) => callback({ customizations: [] })
+                        },
+                        sync: {
+                            get: (keys, callback) => callback({ lastSync: null })
+                        }
+                    },
+                    runtime: {
+                        sendMessage: (message, callback) => {
+                            if (message.action === 'sync') {
+                                callback({
+                                    success: false,
+                                    error: 'Network error: Unable to reach SharePoint'
+                                });
+                            }
+                        }
+                    }
+                };
+            });
+
+            await page.goto(extensionPopup);
+
+            // Try to sync
+            await page.click('#sync-button');
+
+            // Check for error message
+            await page.waitForSelector('.error-message', { timeout: 5000 });
+            const errorText = await page.$eval('.error-message', el => el.textContent);
+            expect(errorText).toContain('Network error');
+        });
+
+        test('should handle missing permissions', async () => {
+            const extensionPopup = `chrome-extension://${extensionId}/popup.html`;
+
+            // Mock permission denied
+            await page.evaluateOnNewDocument(() => {
+                window.chrome = {
+                    storage: {
+                        local: {
+                            get: () => { throw new Error('Permission denied'); }
+                        }
+                    }
+                };
+            });
+
+            await page.goto(extensionPopup);
+
+            // Check for permission error
+            await page.waitForSelector('.permission-error', { timeout: 5000 });
+            const errorText = await page.$eval('.permission-error', el => el.textContent);
+            expect(errorText).toContain('Permission');
+        });
+    });
+
+    describe('Performance', () => {
+        test('should load popup quickly', async () => {
+            const startTime = Date.now();
+            const extensionPopup = `chrome-extension://${extensionId}/popup.html`;
+
+            await page.goto(extensionPopup);
+            await page.waitForSelector('#sync-button');
+
+            const loadTime = Date.now() - startTime;
+            expect(loadTime).toBeLessThan(1000); // Should load in under 1 second
+        });
+
+        test('should handle large customization lists', async () => {
+            // Create 100 test customizations
+            const largeCustomizationList = Array.from({ length: 100 }, (_, i) => ({
+                id: `test-${i}`,
+                name: `Customization ${i}`,
+                domain: '*.dynamics.com',
+                targetElement: `[data-id="element-${i}"]`,
+                cssProperty: 'color',
+                cssValue: '#000000',
+                isActive: i % 2 === 0
+            }));
+
+            await page.evaluateOnNewDocument((customizations) => {
+                window.chrome = {
+                    storage: {
+                        local: {
+                            get: (keys, callback) => callback({ customizations })
+                        }
+                    }
+                };
+            }, largeCustomizationList);
+
+            const extensionPopup = `chrome-extension://${extensionId}/popup.html`;
+            const startTime = Date.now();
+
+            await page.goto(extensionPopup);
+            await page.waitForSelector('.customization-item');
+
+            const renderTime = Date.now() - startTime;
+            expect(renderTime).toBeLessThan(2000); // Should render in under 2 seconds
+
+            // Verify all items rendered
+            const items = await page.$$('.customization-item');
+            expect(items.length).toBe(100);
+        });
+    });
 });
-
-// End
