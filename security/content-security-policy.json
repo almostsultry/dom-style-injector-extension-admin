@@ -1,0 +1,14 @@
+{
+    "csp_description": "Content Security Policy directives for Manifest V3 extension. This policy aims to restrict the sources from which content can be loaded to minimize XSS and other injection attacks.",
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self';",
+        "sandbox_pages": "script-src 'self'; object-src 'self';"
+    },
+    "notes": [
+        "connect-src: Includes Microsoft login and Graph API endpoints for authentication and data sync.",
+        "style-src: 'unsafe-inline' is often necessary for dynamic style injection, but should be used cautiously. Consider moving inline styles to external files when possible.",
+        "object-src: 'self' prevents loading of plugins/flash from external sources.",
+        "script-src: 'self' means only scripts bundled with the extension can run. No remote scripts.",
+        "img-src: 'data:' allows data URIs for images (e.g., base64 encoded images)."
+    ]
+}

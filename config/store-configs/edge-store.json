@@ -1,0 +1,38 @@
+{
+    "storeName": "Microsoft Edge Add-ons",
+    "productId": "YOUR_EDGE_PRODUCT_ID",
+    "developerId": "YOUR_EDGE_DEVELOPER_ID",
+    "uploadOptions": {
+        "autoPublish": true,
+        "notes": "Latest version with performance improvements and bug fixes."
+    },
+    "listing": {
+        "defaultLocale": "en-US",
+        "displayName": {
+            "en-US": "D365 DOM Style Injector (Admin)"
+        },
+        "summary": {
+            "en-US": "Admin tool for D365 and SharePoint CSS/DOM customization."
+        },
+        "description": {
+            "en-US": "This extension provides administrators with powerful tools to inject custom CSS and manipulate the DOM across Microsoft Dynamics 365 and SharePoint Online environments, enabling deep visual and functional customization."
+        },
+        "privacyPolicyUrl": "https://yourcompany.com/privacy",
+        "supportUrl": "https://yourcompany.com/support",
+        "websiteUrl": "https://yourcompany.com",
+        "category": "Developer Tools",
+        "images": {
+            "screenshots": [
+                "images/screenshot1.png",
+                "images/screenshot2.png"
+            ]
+        }
+    },
+    "oauth": {
+        "tenantId": "YOUR_AZURE_AD_TENANT_ID",
+        "clientId": "YOUR_AZURE_AD_CLIENT_ID",
+        "clientSecret": "YOUR_AZURE_AD_CLIENT_SECRET",
+        "accessTokenUrl": "https://login.microsoftonline.com/YOUR_AZURE_AD_TENANT_ID/oauth2/v2.0/token",
+        "scope": "https://graph.microsoft.com/.default"
+    }
+}

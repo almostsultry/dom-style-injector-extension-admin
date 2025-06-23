@@ -1,0 +1,41 @@
+{
+    "storeName": "Chrome Web Store",
+    "extensionId": "YOUR_CHROME_EXTENSION_ID",
+    "developerId": "YOUR_CHROME_DEVELOPER_ID",
+    "uploadOptions": {
+        "autoPublish": true,
+        "releaseNotes": {
+            "en-US": "Latest version with performance improvements and bug fixes."
+        }
+    },
+    "listing": {
+        "defaultLocale": "en-US",
+        "name": {
+            "en-US": "D365 DOM Style Injector (Admin)"
+        },
+        "shortDescription": {
+            "en-US": "Admin tool for D365 and SharePoint CSS/DOM customization."
+        },
+        "fullDescription": {
+            "en-US": "This extension provides administrators with powerful tools to inject custom CSS and manipulate the DOM across Microsoft Dynamics 365 and SharePoint Online environments, enabling deep visual and functional customization."
+        },
+        "privacyPolicyUrl": "https://yourcompany.com/privacy",
+        "supportUrl": "https://yourcompany.com/support",
+        "websiteUrl": "https://yourcompany.com",
+        "category": "developer_tools",
+        "images": {
+            "smallPromotionalTile": "images/promo_small.png",
+            "largePromotionalTile": "images/promo_large.png",
+            "marqueePromotionalTile": "images/promo_marquee.png",
+            "screenshots": [
+                "images/screenshot1.png",
+                "images/screenshot2.png"
+            ]
+        }
+    },
+    "oauth": {
+        "clientId": "YOUR_CHROME_OAUTH_CLIENT_ID",
+        "clientSecret": "YOUR_CHROME_OAUTH_CLIENT_SECRET",
+        "refreshToken": "YOUR_CHROME_OAUTH_REFRESH_TOKEN"
+    }
+}
