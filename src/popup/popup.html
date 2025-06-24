@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D365 DOM Style Injector</title>
+    <link href="popup.css" rel="stylesheet">
+</head>
+
+<body>
+    <div id="loader-view">
+        <p>Authenticating and checking permissions...</p>
+        <div class="spinner"></div>
+    </div>
+
+    <div id="admin-view" class="view">
+        <h1>Style Administrator</h1>
+        <p>Create and manage injection rules for your organization.</p>
+        <textarea id="css-editor" placeholder="Enter custom CSS..."></textarea>
+        <button id="save-rule">Save Rule</button>
+    </div>
+
+    <div id="user-view" class="view">
+        <h1>DOM Style Injector</h1>
+        <p>Custom enterprise styles are being applied.</p>
+        <p>Please contact your System Customizer to request changes.</p>
+    </div>
+
+    <div id="error-view" class="view">
+        <h1>Error</h1>
+        <p id="error-message">An error occurred.</p>
+    </div>
+
+    <script src="../popup/popup.js"></script>
+</body>
+
+</html>

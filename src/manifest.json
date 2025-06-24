@@ -1,95 +1,24 @@
 {
   "manifest_version": 3,
-  "name": "DOM Style Injector - Admin",
-  "version": "1.0.1",
-  "description": "Administrative extension for creating, managing, and distributing CSS customizations with Microsoft Graph synchronization",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "storage",
-    "identity",
-    "background"
-  ],
-  "host_permissions": [
-    "https://ambata.crm.dynamics.com/*",
-    "https://graph.microsoft.com/*",
-    "https://*.sharepoint.com/*"
-  ],
-  "oauth2": {
-    "client_id": "your-azure-app-client-id",
-    "scopes": [
-      "https://graph.microsoft.com/Sites.ReadWrite.All",
-      "https://graph.microsoft.com/User.Read"
-    ]
-  },
+  "name": "D365 DOM Style Injector",
+  "version": "1.0.0",
+  "description": "A browser extension for CSS injection and DOM manipulation.",
+  "permissions": ["storage", "identity"],
+  "host_permissions": ["https://*.dynamics.com/"],
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "DOM Style Injector - Admin",
+    "default_popup": "src/popup/popup.html",
     "default_icon": {
-      "16": "icons/admin-icon16.png",
-      "48": "icons/admin-icon48.png",
-      "128": "icons/admin-icon128.png"
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
     }
   },
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "https://ambata.crm.dynamics.com/*"
-      ],
-      "js": [
-        "content.js"
-      ],
-      "run_at": "document_start"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "lib/msal-browser.min.js",
-        "auth/auth-service.js",
-        "sync/sync-manager.js",
-        "styles/*.css"
-      ],
-      "matches": [
-        "https://ambata.crm.dynamics.com/*"
-      ]
-    }
-  ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://*.sharepoint.com;"
+    "service_worker": "src/scripts/service-worker.js"
   },
   "icons": {
-    "16": "icons/admin-icon16.png",
-    "48": "icons/admin-icon48.png",
-    "128": "icons/admin-icon128.png"
-  },
-  "options_ui": {
-    "page": "options.html",
-    "open_in_tab": true
-  },
-  "commands": {
-    "toggle-extension": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
-      },
-      "description": "Toggle DOM Style Injector popup"
-    },
-    "sync-now": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+Y",
-        "mac": "Command+Shift+Y"
-      },
-      "description": "Manually trigger synchronization"
-    }
-  },
-  "externally_connectable": {
-    "matches": [
-      "https://ambata.crm.dynamics.com/*"
-    ]
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
   }
 }
