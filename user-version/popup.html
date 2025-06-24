@@ -1,290 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DOM Style Injector - User</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            width: 400px;
-            min-height: 500px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .header .subtitle {
-            font-size: 12px;
-            opacity: 0.9;
-        }
-
-        .sync-section {
-            padding: 20px;
-            background: white;
-            margin: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .sync-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        #sync-status {
-            font-size: 12px;
-            color: #666;
-        }
-
-        #sync-button {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            width: 100%;
-            transition: all 0.3s ease;
-        }
-
-        #sync-button:hover {
-            background: #45a049;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-        }
-
-        #sync-button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        #sync-button.syncing {
-            background: #ff9800;
-        }
-
-        .customizations-section {
-            padding: 0 15px 15px;
-        }
-
-        .section-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: #555;
-        }
-
-        .customization-list {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .customization-item {
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: background-color 0.2s;
-        }
-
-        .customization-item:last-child {
-            border-bottom: none;
-        }
-
-        .customization-item:hover {
-            background-color: #f9f9f9;
-        }
-
-        .customization-info {
-            flex: 1;
-        }
-
-        .customization-name {
-            font-weight: 500;
-            margin-bottom: 4px;
-        }
-
-        .customization-details {
-            font-size: 12px;
-            color: #666;
-        }
-
-        .toggle-switch {
-            position: relative;
-            width: 50px;
-            height: 24px;
-        }
-
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 24px;
-        }
-
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .toggle-slider {
-            background-color: #4CAF50;
-        }
-
-        input:checked + .toggle-slider:before {
-            transform: translateX(26px);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #999;
-        }
-
-        .empty-state svg {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-
-        .error-message,
-        .permission-error {
-            background: #fee;
-            color: #c33;
-            padding: 10px 15px;
-            margin: 15px;
-            border-radius: 5px;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .error-message svg,
-        .permission-error svg {
-            width: 20px;
-            height: 20px;
-            flex-shrink: 0;
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #333;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Scrollbar styling */
-        .customization-list::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .customization-list::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-
-        .customization-list::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 3px;
-        }
-
-        .customization-list::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-    </style>
+    <!-- External CSS Files -->
+    <link rel="stylesheet" href="../src/styles/common.css">
+    <link rel="stylesheet" href="../src/styles/popup.css">
+    <link rel="stylesheet" href="../src/styles/user-theme.css">
 </head>
+
 <body>
     <div class="header">
         <h1>DOM Style Injector</h1>
-        <div class="subtitle">User Version - Read Only</div>
+        <div class="subtitle">Apply Customizations</div>
     </div>
 
-    <div class="sync-section">
-        <div class="sync-info">
-            <span id="sync-status">Loading...</span>
-            <span id="customization-count"></span>
+    <div class="content custom-scrollbar">
+        <!-- Info Banner -->
+        <div class="info-banner">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Customizations are managed by your IT administrator</span>
         </div>
-        <button id="sync-button">
-            <span id="sync-button-text">Sync Customizations</span>
-        </button>
-    </div>
 
-    <div class="customizations-section">
-        <h2 class="section-title">Active Customizations</h2>
-        <div id="customization-container">
-            <div class="customization-list" id="customization-list">
-                <div class="empty-state">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                    <p>No customizations yet</p>
-                    <p style="font-size: 12px; margin-top: 5px;">Click sync to load customizations</p>
+        <!-- Sync Section -->
+        <div class="section sync-section">
+            <div class="sync-info">
+                <div>
+                    <span class="sync-status-icon" id="sync-status-icon"></span>
+                    <span id="sync-status">Loading...</span>
+                </div>
+                <span id="customization-count" class="text-sm"></span>
+            </div>
+
+            <button id="sync-button" class="btn btn-success btn-full">
+                <span id="sync-button-text">Sync Customizations</span>
+            </button>
+
+            <div class="sync-history">
+                <div id="last-sync-info" class="sync-history-item"></div>
+            </div>
+        </div>
+
+        <!-- Customizations List -->
+        <div class="section">
+            <h2 class="section-title">Available Customizations</h2>
+            <div id="customization-container">
+                <div class="customization-list custom-scrollbar" id="customization-list">
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        <p>No customizations available</p>
+                        <p class="text-sm text-muted">Click sync to load customizations from your organization</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Sync Overlay -->
+    <div id="sync-overlay" class="sync-overlay">
+        <div class="sync-overlay-content">
+            <div class="loading-spinner"></div>
+            <p class="text-muted">Synchronizing customizations...</p>
+        </div>
+    </div>
+
     <div id="error-container"></div>
+
+    <div class="footer-info">
+        <small>Version 2.0.0 • Managed by IT</small>
+    </div>
 
     <script src="popup.js"></script>
 </body>
+
 </html>

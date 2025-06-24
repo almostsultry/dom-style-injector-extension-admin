@@ -1,551 +1,232 @@
-/* Admin-specific theme overrides and styles */
+/* src/styles/admin-theme.css - Admin-specific styling overrides */
 
+/* Admin Color Scheme Override */
 :root {
-    /* Admin color scheme - more professional and distinct */
-    --admin-primary: #0f172a;
-    --admin-primary-hover: #1e293b;
-    --admin-secondary: #64748b;
-    --admin-accent: #f59e0b;
-    --admin-accent-hover: #d97706;
-
-    /* Admin-specific gradients */
-    --admin-gradient-primary: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-    --admin-gradient-accent: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    --admin-gradient-success: linear-gradient(135deg, #059669 0%, #047857 100%);
-
-    /* Admin shadows */
-    --admin-shadow-glow: 0 0 20px rgba(245, 158, 11, 0.3);
-    --admin-shadow-deep: 0 25px 50px rgba(15, 23, 42, 0.25);
+    /* Admin-specific colors */
+    --primary-color: #5b21b6;
+    /* Purple for admin */
+    --primary-dark: #4c1d95;
+    --accent-color: #f59e0b;
+    /* Amber accent */
 }
 
-/* Admin body styling */
-body.admin-version {
-    background: var(--admin-gradient-primary);
-    min-height: 600px;
-    width: 420px;
-}
-
-/* Admin container */
-.admin-version .container {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(245, 158, 11, 0.2);
-    box-shadow: var(--admin-shadow-deep);
-    position: relative;
-    overflow: hidden;
-}
-
-.admin-version .container::before {
-    content: '';
+/* Admin Badge */
+.header::after {
+    content: "ADMIN";
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--admin-gradient-accent);
-    z-index: 1;
-}
-
-/* Admin header with badge */
-.admin-version h1 {
-    color: var(--admin-primary);
-    font-size: 22px;
-    font-weight: 700;
-    position: relative;
-    padding-top: 16px;
-    margin-bottom: 32px;
-}
-
-.admin-version h1::before {
-    content: 'ADMIN';
-    position: absolute;
-    top: -8px;
-    right: 0;
-    background: var(--admin-gradient-accent);
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background: var(--accent-color);
     color: white;
     font-size: 10px;
-    font-weight: 800;
-    padding: 4px 8px;
-    border-radius: 12px;
-    letter-spacing: 0.1em;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.5px;
 }
 
-.admin-version h1::after {
-    background: var(--admin-gradient-accent);
-    width: 60px;
-    height: 3px;
+/* Enhanced Admin Controls */
+.admin-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
 }
 
-/* Admin form styling */
-.admin-version .form-group {
-    position: relative;
-}
-
-.admin-version .form-group::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: var(--admin-gradient-accent);
-    border-radius: 2px;
-    opacity: 0;
-    transition: opacity var(--transition-normal);
-}
-
-.admin-version .form-group:focus-within::before {
-    opacity: 1;
-}
-
-.admin-version label {
-    color: var(--admin-primary);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-size: 12px;
-}
-
-/* Admin input styling */
-.admin-version input[type="text"],
-.admin-version input[type="email"],
-.admin-version input[type="password"],
-.admin-version select,
-.admin-version textarea {
-    border: 2px solid rgba(15, 23, 42, 0.1);
-    background: rgba(255, 255, 255, 0.8);
-    color: var(--admin-primary);
+.btn-create {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    border: none;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
     font-weight: 500;
-    transition: all var(--transition-normal);
+    cursor: pointer;
+    transition: all var(--transition-fast);
 }
 
-.admin-version input[type="text"]:focus,
-.admin-version input[type="email"]:focus,
-.admin-version input[type="password"]:focus,
-.admin-version select:focus,
-.admin-version textarea:focus {
-    border-color: var(--admin-accent);
-    background: rgba(255, 255, 255, 1);
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1), var(--admin-shadow-glow);
-    transform: translateY(-2px);
+.btn-create:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(91, 33, 182, 0.3);
 }
 
-/* Admin button styling */
-.admin-version .btn-primary {
-    background: var(--admin-gradient-accent);
-    border: none;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-    position: relative;
-    overflow: hidden;
+.btn-create svg {
+    width: 16px;
+    height: 16px;
 }
 
-.admin-version .btn-primary::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s;
+/* Admin Action Buttons */
+.btn-edit {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
 }
 
-.admin-version .btn-primary:hover::before {
-    left: 100%;
-}
-
-.admin-version .btn-primary:hover {
-    background: var(--admin-gradient-accent);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
-}
-
-.admin-version .btn-secondary {
-    background: rgba(100, 116, 139, 0.1);
-    color: var(--admin-secondary);
-    border: 2px solid rgba(100, 116, 139, 0.2);
-    font-weight: 600;
-}
-
-.admin-version .btn-secondary:hover {
-    background: rgba(100, 116, 139, 0.2);
-    border-color: var(--admin-secondary);
-    color: var(--admin-primary);
-}
-
-/* Admin save button styling */
-.admin-version .btn-success {
-    background: var(--admin-gradient-success);
-    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
-}
-
-.admin-version .btn-success:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(5, 150, 105, 0.4);
-}
-
-/* Admin status messages */
-.admin-version .status {
-    border: none;
-    border-radius: var(--radius-lg);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-size: 12px;
-    box-shadow: var(--shadow-md);
-}
-
-.admin-version .status.success {
-    background: var(--admin-gradient-success);
+.btn-edit:hover {
+    background-color: var(--primary-color);
     color: white;
 }
 
-.admin-version .status.error {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+.btn-delete {
+    color: var(--error-color);
+    border-color: var(--error-color);
+}
+
+.btn-delete:hover {
+    background-color: var(--error-color);
     color: white;
 }
 
-.admin-version .status.warning {
-    background: var(--admin-gradient-accent);
-    color: white;
-}
-
-/* Admin customization cards */
-.admin-version .customization-card {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(245, 158, 11, 0.2);
-    box-shadow: 0 8px 25px rgba(15, 23, 42, 0.1);
-    position: relative;
-    overflow: hidden;
-}
-
-.admin-version .customization-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: var(--admin-gradient-accent);
-}
-
-.admin-version .customization-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 35px rgba(15, 23, 42, 0.15), var(--admin-shadow-glow);
-    border-color: var(--admin-accent);
-}
-
-.admin-version .card-breadcrumb {
-    background: var(--admin-gradient-accent);
-    color: white;
-    font-weight: 700;
+/* Form Styling for Admin */
+.admin-form {
+    background: #f8f6ff;
+    border: 1px solid #e9d5ff;
+    padding: var(--spacing-md);
     border-radius: var(--radius-md);
-    padding: 6px 10px;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    margin-bottom: var(--spacing-md);
 }
 
-.admin-version .editable-style {
-    border-bottom: 3px solid rgba(245, 158, 11, 0.3);
-    background: rgba(245, 158, 11, 0.02);
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-    font-weight: 600;
-    color: var(--admin-primary);
+.admin-form .form-input:focus,
+.admin-form .form-select:focus,
+.admin-form .form-textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(91, 33, 182, 0.1);
 }
 
-.admin-version .editable-style:focus {
-    border-bottom-color: var(--admin-accent);
-    background: rgba(245, 158, 11, 0.05);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+/* Advanced Options Toggle */
+.advanced-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin: var(--spacing-md) 0;
+    cursor: pointer;
+    user-select: none;
+    color: var(--primary-color);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
 }
 
-/* Admin card buttons */
-.admin-version .card-btn {
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    border-radius: var(--radius-lg);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+.advanced-toggle svg {
+    width: 16px;
+    height: 16px;
+    transition: transform var(--transition-fast);
 }
 
-.admin-version .card-btn-save {
-    background: var(--admin-gradient-success);
+.advanced-toggle.expanded svg {
+    transform: rotate(90deg);
 }
 
-.admin-version .card-btn-save:hover:not(:disabled) {
-    box-shadow: 0 4px 15px rgba(5, 150, 105, 0.4);
+.advanced-options {
+    display: none;
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
 }
 
-.admin-version .card-btn-delete {
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+.advanced-options.show {
+    display: block;
+    animation: slideDown var(--transition-normal);
 }
 
-.admin-version .card-btn-delete:hover {
-    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+/* Publishing Controls */
+.publish-controls {
+    background: linear-gradient(to right, #f8f6ff, #fef3c7);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-md);
 }
 
-/* Admin query string section */
-.admin-version .query-string-list {
-    background: rgba(245, 158, 11, 0.05);
-    border: 2px solid rgba(245, 158, 11, 0.2);
-    border-radius: var(--radius-lg);
+.publish-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-sm);
 }
 
-.admin-version .query-string-item {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1);
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
 }
 
-.admin-version .query-string-item:hover {
+.status-badge.published {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.draft {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.modified {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Admin Stats */
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-sm);
+    margin: var(--spacing-md) 0;
+}
+
+.stat-card {
     background: white;
-    border-color: var(--admin-accent);
-    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.2);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    text-align: center;
+    border: 1px solid var(--border-color);
 }
 
-.admin-version .query-string-item input[type="checkbox"] {
-    accent-color: var(--admin-accent);
-}
-
-/* Admin authentication section */
-.admin-version .auth-section {
-    background: var(--admin-gradient-primary);
-    color: white;
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    position: relative;
-    overflow: hidden;
-}
-
-.admin-version .auth-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--admin-gradient-accent);
-}
-
-.admin-version .auth-status {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.admin-version .user-name {
-    color: var(--admin-accent);
+.stat-value {
+    font-size: 24px;
     font-weight: 700;
+    color: var(--primary-color);
 }
 
-.admin-version .auth-indicator.authenticated {
-    background: var(--admin-accent);
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+.stat-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-top: var(--spacing-xs);
 }
 
-/* Admin sync section */
-.admin-version .sync-section {
-    background: rgba(245, 158, 11, 0.05);
-    border: 2px solid rgba(245, 158, 11, 0.2);
-    position: relative;
+/* Audit Trail Link */
+.audit-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    color: var(--primary-color);
+    font-size: var(--font-size-sm);
+    text-decoration: none;
+    margin-top: var(--spacing-sm);
 }
 
-.admin-version .sync-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--admin-gradient-accent);
+.audit-link:hover {
+    text-decoration: underline;
 }
 
-.admin-version .sync-info {
-    color: var(--admin-primary);
-    font-weight: 600;
+/* Admin-only Loading States */
+.admin-loading {
+    background: linear-gradient(90deg,
+            #f8f6ff 0%,
+            #e9d5ff 50%,
+            #f8f6ff 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
 }
 
-/* Admin loading states */
-.admin-version .loading::after {
-    border-top-color: var(--admin-accent);
-    border-right-color: rgba(245, 158, 11, 0.3);
-}
-
-/* Admin scrollbar styling */
-.admin-version .existing-customizations::-webkit-scrollbar-thumb {
-    background: var(--admin-gradient-accent);
-    border-radius: 4px;
-}
-
-.admin-version .existing-customizations::-webkit-scrollbar-track {
-    background: rgba(245, 158, 11, 0.1);
-}
-
-/* Admin responsive adjustments */
-@media (max-width: 450px) {
-    body.admin-version {
-        width: 100%;
-        min-width: 360px;
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
     }
 
-    .admin-version .container {
-        margin: 4px;
-        padding: 20px;
-    }
-
-    .admin-version h1::before {
-        position: static;
-        display: block;
-        text-align: center;
-        margin-bottom: 8px;
-    }
-}
-
-/* Admin dark mode */
-@media (prefers-color-scheme: dark) {
-    .admin-version .container {
-        background: rgba(15, 23, 42, 0.95);
-        color: white;
-    }
-
-    .admin-version h1 {
-        color: white;
-    }
-
-    .admin-version label {
-        color: rgba(255, 255, 255, 0.9);
-    }
-
-    .admin-version input[type="text"],
-    .admin-version input[type="email"],
-    .admin-version input[type="password"],
-    .admin-version select,
-    .admin-version textarea {
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
-        border-color: rgba(245, 158, 11, 0.3);
-    }
-
-    .admin-version .customization-card {
-        background: rgba(30, 41, 59, 0.8);
-        color: white;
-    }
-
-    .admin-version .editable-style {
-        color: white;
-    }
-}
-
-/* Admin high contrast mode */
-@media (prefers-contrast: high) {
-    .admin-version .container {
-        border: 3px solid var(--admin-accent);
-    }
-
-    .admin-version .btn-primary {
-        border: 2px solid var(--admin-primary);
-    }
-
-    .admin-version .customization-card {
-        border: 2px solid var(--admin-accent);
-    }
-}
-
-/* Admin focus indicators for accessibility */
-.admin-version *:focus {
-    outline: 3px solid var(--admin-accent);
-    outline-offset: 2px;
-}
-
-/* Admin animation delays for staggered loading */
-.admin-version .form-group:nth-child(1) {
-    animation-delay: 0.1s;
-}
-
-.admin-version .form-group:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.admin-version .form-group:nth-child(3) {
-    animation-delay: 0.3s;
-}
-
-.admin-version .form-group:nth-child(4) {
-    animation-delay: 0.4s;
-}
-
-.admin-version .customization-card:nth-child(1) {
-    animation-delay: 0.1s;
-}
-
-.admin-version .customization-card:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.admin-version .customization-card:nth-child(3) {
-    animation-delay: 0.3s;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.admin-version .form-group,
-.admin-version .customization-card {
-    animation: fadeInUp 0.6s ease forwards;
-}
-
-/* Admin badge animations */
-@keyframes badgePulse {
-
-    0%,
     100% {
-        transform: scale(1);
-        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
-    }
-
-    50% {
-        transform: scale(1.05);
-        box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5);
-    }
-}
-
-.admin-version h1::before {
-    animation: badgePulse 3s ease-in-out infinite;
-}
-
-/* Admin premium indicator */
-.admin-version .premium-feature {
-    position: relative;
-}
-
-.admin-version .premium-feature::after {
-    content: '★';
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    color: var(--admin-accent);
-    font-size: 12px;
-    animation: sparkle 2s ease-in-out infinite;
-}
-
-@keyframes sparkle {
-
-    0%,
-    100% {
-        opacity: 1;
-        transform: rotate(0deg) scale(1);
-    }
-
-    50% {
-        opacity: 0.7;
-        transform: rotate(180deg) scale(1.2);
+        background-position: 200% 0;
     } }
