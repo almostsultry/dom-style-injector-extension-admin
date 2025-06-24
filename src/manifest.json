@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DOM Style Injector - Admin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Administrative extension for creating, managing, and distributing CSS customizations with Microsoft Graph synchronization",
   "permissions": [
     "activeTab",
@@ -37,8 +37,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://ambata.crm.dynamics.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://ambata.crm.dynamics.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start"
     }
   ],
@@ -50,7 +54,9 @@
         "sync/sync-manager.js",
         "styles/*.css"
       ],
-      "matches": ["https://ambata.crm.dynamics.com/*"]
+      "matches": [
+        "https://ambata.crm.dynamics.com/*"
+      ]
     }
   ],
   "content_security_policy": {
