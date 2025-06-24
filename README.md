@@ -1,224 +1,227 @@
 # DOM Style Injector Extension - Admin Version
 
-> **⚠️ Admin Version**: This is the administrative version with full CRUD capabilities for creating, editing, and managing customizations. A separate user version (read-only) will be available for end users to consume published customizations.
+⚠️ **Admin Version**: This is the administrative version with full CRUD capabilities for creating, editing, and managing customizations. A separate user version (read-only) is available for end users to consume published customizations.
 
-A powerful Chrome/Edge extension that allows administrators to create, manage, and distribute CSS customizations across an organization with Microsoft Graph/SharePoint synchronization.
+## 🚀 Recent Updates
 
-## 🔑 Admin vs User Versions
+### Version 2.0.0 Changes
 
-### Admin Version (This Repository)
-- **Full CRUD operations** for customizations
-- **SharePoint/Dataverse integration** for centralized storage
-- **Microsoft Graph authentication** with elevated permissions
-- **Publishing capabilities** to distribute customizations
-- **Advanced management features** and audit controls
+- **Hybrid CSS Architecture**: Migrated from inline styles to external CSS files for better maintainability
+- **Improved Build System**: Enhanced CSS processing with minification and concatenation
+- **Updated Dependencies**: Removed security vulnerabilities, updated to latest package versions
+- **ESLint v9**: Migrated to the new flat config format
+- **Removed Puppeteer**: Using Playwright exclusively for E2E testing (no security vulnerabilities)
 
-### User Version (Planned)
-- **Read-only consumption** of published customizations
-- **Automatic synchronization** from central repository
-- **No local editing capabilities** - security focused
-- **Lightweight installation** for end users
-- **Simple interface** for applying/removing customizations
+## 📁 Project Structure
 
-## 🚀 Features
+```dom-style-injector-extension-admin/
+├── src/                        # Admin extension source
+│   ├── styles/                 # CSS files (NEW)
+│   │   ├── common.css         # Shared styles
+│   │   ├── popup.css          # Popup layout
+│   │   └── admin-theme.css    # Admin-specific theme
+│   ├── popup.html             # Now uses external CSS
+│   ├── popup.js
+│   ├── content.js
+│   └── background.js
+├── user-version/              # User extension source
+│   ├── popup.html            # References admin CSS
+│   ├── popup.js
+│   ├── content.js
+│   └── background.js         # Simple sync worker
+├── dist/                     # Build output
+│   ├── admin/
+│   │   └── styles/          # Processed CSS
+│   └── user/
+│       └── styles/          # Copied CSS
+└── eslint.config.js         # ESLint v9 flat config (NEW)
+```
 
-### Core Functionality
-- **🎯 Precise Element Targeting** - Target elements by any attribute (data-*, id, class, etc.)
-- **🎨 Dynamic Style Injection** - Apply any CSS property and value in real-time
-- **💾 Persistent Storage** - Save customizations with intelligent JSON storage
-- **🔄 Enterprise Synchronization** - Multi-user sync with Microsoft Graph/SharePoint
+## 🛠️ Development Setup
 
-### Admin-Specific Features
-- **👥 User Management** - Control who can view/edit customizations
-- **📊 Usage Analytics** - Track customization deployment and usage
-- **🔐 Permission Controls** - Granular access management
-- **📝 Approval Workflows** - Review and approve customization changes
-- **🗂️ Centralized Management** - SharePoint List integration for enterprise storage
+### Prerequisites
 
-### Technical Features
-- **⚡ Intelligent Loading** - Dynamic content detection with retry mechanisms
-- **📱 Modern UI** - Clean, responsive admin interface
-- **🔒 Security First** - Domain-restricted with Microsoft authentication
-- **📝 Live Editing** - Edit saved customizations with immediate DOM application
-- **🔄 CI/CD Integration** - Automated testing, building, and deployment
+- Node.js >= 16.0.0
+- npm >= 8.0.0
+- Chrome or Edge browser
 
-## 🛡️ Security & Compliance
+### Installation
 
-### Enterprise Security
-- **Domain restriction** to approved corporate domains
-- **Microsoft Azure AD integration** for authentication
-- **Role-based access control** (RBAC) for admin operations
-- **Audit logging** for compliance requirements
-- **Data sovereignty** - all data stays within your Microsoft 365 tenant
-
-### Admin Privileges
-- **Create/Edit/Delete** customizations
-- **Publish to user base** with approval workflows
-- **Monitor usage** and performance metrics
-- **Manage user permissions** and access levels
-- **Export/Import** customizations for backup/migration
-
-## 📋 Prerequisites
-
-### Admin Version Requirements
-- Chrome or Edge browser (Manifest V3 compatible)
-- Microsoft 365 Enterprise account with admin privileges
-- SharePoint site with appropriate permissions
-- Azure AD app registration (for Graph API access)
-- Admin access to target domains
-
-### Permissions Needed
-- **SharePoint**: `Sites.ReadWrite.All` or `Sites.Selected`
-- **Microsoft Graph**: `User.Read`, `Sites.ReadWrite.All`
-- **Azure AD**: Application registration with appropriate scopes
-
-## 🔧 Installation
-
-### Quick Start (Admin)
 ```bash
-# Clone the admin repository
-git clone https://github.com/your-org/dom-style-injector-extension-admin.git
+# Clone the repository
+git clone https://github.com/almostsultry/dom-style-injector-extension-admin.git
 cd dom-style-injector-extension-admin
 
 # Install dependencies
 npm install
 
-# Build the admin version
-npm run build:admin
-
-# Load in browser (development)
-npm run dev:admin
+# Build both versions
+npm run build:all
 ```
 
-### Production Deployment
-```bash
-# Build for production
-npm run build:prod
+### CSS Architecture
 
-# Package for Chrome Web Store
-npm run package:chrome
+We use a **hybrid CSS approach**:
 
-# Package for Edge Add-ons
-npm run package:edge
-```
+- **External CSS files** for popup/options pages (better maintainability)
+- **Programmatic injection** for content scripts (CSP compatibility)
+- **CSS variables** for theming support
+- **Minification** in production builds
 
-## 📖 Documentation
+### Available Scripts
 
-### Admin Documentation
-- [📥 Admin Installation Guide](docs/admin/installation.md)
-- [📖 Admin Usage Guide](docs/admin/usage.md)
-- [🔗 SharePoint Setup](docs/admin/sharepoint-setup.md)
-- [🔐 Permissions Management](docs/admin/permissions.md)
-
-### Development
-- [🤝 Contributing Guide](docs/development/contributing.md)
-- [🏗️ Architecture Overview](docs/development/architecture.md)
-- [🧪 Testing Guide](docs/development/testing.md)
-
-### Deployment
-- [🚀 CI/CD Setup](docs/deployment/ci-cd-setup.md)
-- [🏪 Store Submission](docs/deployment/store-submission.md)
-- [⚙️ Environment Configuration](docs/deployment/environment-config.md)
-
-## 🏗️ Architecture
-
-### Admin Version Components
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Admin UI      │    │  Authentication  │    │   SharePoint    │
-│   (popup.html)  │◄──►│   Service        │◄──►│   Integration   │
-│                 │    │   (MSAL.js)      │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                        │                        │
-         ▼                        ▼                        ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Content       │    │   Background     │    │   Sync          │
-│   Script        │    │   Service        │    │   Manager       │
-│                 │    │   Worker         │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
-
-### Data Flow
-1. **Admin creates customization** → Local validation
-2. **Authentication check** → Microsoft Graph token
-3. **Save to SharePoint** → Centralized storage
-4. **Distribute to users** → Automatic sync
-5. **Apply to target pages** → DOM manipulation
-
-## 🚀 Development
-
-### Build System
-- **Webpack** for bundling and optimization
-- **ESLint** for code quality
-- **Prettier** for code formatting
-- **Jest** for unit testing
-- **Playwright** for E2E testing
-
-### Scripts
 ```bash
 # Development
-npm run dev:admin          # Start admin development server
-npm run dev:user           # Start user development server
-npm run test               # Run all tests
-npm run test:watch         # Run tests in watch mode
-npm run lint               # Lint code
-npm run format             # Format code
+npm run dev:admin          # Watch mode for admin version
+npm run dev:user           # Watch mode for user version
 
 # Building
 npm run build:admin        # Build admin version
 npm run build:user         # Build user version
 npm run build:all          # Build both versions
+npm run build:prod         # Production build (minified)
 
-# Deployment
-npm run release            # Create new release
-npm run deploy:chrome      # Deploy to Chrome Web Store
-npm run deploy:edge        # Deploy to Edge Add-ons
+# Testing
+npm test                   # Run unit tests
+npm run test:e2e          # Run Playwright E2E tests
+npm run test:coverage     # Generate coverage report
+
+# Code Quality
+npm run lint              # Run ESLint
+npm run lint:fix          # Fix ESLint issues
+npm run format            # Run Prettier
+npm run format:check      # Check formatting
+
+# Release
+npm run version:bump      # Bump version number
+npm run release          # Create release package
 ```
 
-## 🔄 CI/CD Pipeline
+## 🎨 Styling Guidelines
 
-### Automated Workflows
-- **✅ Continuous Integration** - Automated testing on PR/push
-- **📦 Build & Package** - Automated extension packaging
-- **🔒 Security Scanning** - Vulnerability detection
-- **🚀 Automated Deployment** - Store submission automation
-- **📋 Release Management** - GitHub releases with changelogs
+### CSS File Organization
 
-### Quality Gates
-- Unit test coverage > 80%
-- Integration tests passing
-- Security scan clear
-- Code quality checks passed
-- Manual approval for production deployment
+- `common.css` - Shared components, variables, utilities
+- `popup.css` - Popup-specific layout and components
+- `admin-theme.css` - Admin color scheme and overrides
+- `user-theme.css` - User version theme
+
+### CSS Variables
+
+```css
+/* Available CSS variables for theming */
+--primary-color: #667eea;
+--primary-dark: #764ba2;
+--success-color: #4CAF50;
+--error-color: #cc3333;
+/* See src/styles/common.css for full list */
+```
+
+## 🔧 Build Process
+
+The build process now includes:
+
+1. **CSS Processing**
+   - Development: Copies CSS files as-is
+   - Production: Minifies and optionally combines CSS files
+   - Updates HTML references appropriately
+
+2. **JavaScript Processing**
+   - Minification with Terser
+   - Console log removal in production (user version only)
+   - Source map generation (development)
+
+3. **Asset Management**
+   - Icon copying and optimization
+   - Manifest version updates
+   - ZIP archive creation
+
+## 📦 Extension Loading
+
+### Development Mode
+
+```bash
+# Build in development mode
+NODE_ENV=development npm run build:all
+
+# Load in Chrome/Edge:
+1. Navigate to chrome://extensions or edge://extensions
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select dist/admin for admin version
+5. Select dist/user for user version
+```
+
+### Production Build
+
+```bash
+# Build for production
+npm run build:prod
+
+# Creates minified, optimized builds in dist/
+# Also generates ZIP files for store submission
+```
+
+## 🧪 Testing
+
+### Unit Tests
+
+- Jest with web extension mocks
+- Minimum 80% code coverage requirement
+- Run with: `npm test`
+
+### E2E Tests
+
+- Playwright for browser automation
+- Tests both admin and user workflows
+- Run with: `npm run test:e2e`
+
+## 📝 Code Style
+
+- **ESLint**: v9 with flat config
+- **Prettier**: Automatic formatting
+- **Husky**: Pre-commit hooks (if enabled)
+
+### ESLint Configuration
+
+Now using the new flat config format in `eslint.config.js`:
+
+- ES modules syntax
+- Explicit globals definition
+- Plugin configuration per file pattern
+
+## 🚀 Deployment
+
+### Chrome Web Store
+
+```bash
+npm run package:chrome
+# Upload dist/dom-style-injector-admin-v{version}.zip
+```
+
+### Edge Add-ons
+
+```bash
+npm run package:edge
+# Upload dist/dom-style-injector-admin-v{version}.zip
+```
+
+## 🔒 Security
+
+- No high-severity vulnerabilities
+- Removed Puppeteer to eliminate tar-fs and ws vulnerabilities
+- Regular dependency updates
+- CSP-compliant implementation
 
 ## 🤝 Contributing
 
-### For Administrators
-1. **Report issues** with customizations or sync problems
-2. **Request features** for better admin workflow
-3. **Share feedback** on user adoption and usage patterns
-
-### For Developers
-1. **Fork the repository**
-2. **Create feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Follow coding standards** (ESLint + Prettier)
-4. **Add tests** for new functionality
-5. **Submit Pull Request** with detailed description
-
-### Development Setup
-```bash
-# Clone and setup
-git clone https://github.com/your-org/dom-style-injector-extension-admin.git
-cd dom-style-injector-extension-admin
-npm install
-
-# Setup environment
-cp config/environments/development.example.json config/environments/development.json
-# Edit with your SharePoint/Azure AD details
-
-# Start development
-npm run dev:admin
-```
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Run tests (`npm test`)
+4. Check linting (`npm run lint`)
+5. Commit changes (`git commit -m 'Add amazing feature'`)
+6. Push to branch (`git push origin feature/amazing-feature`)
+7. Open Pull Request
 
 ## 📄 License
 
@@ -226,43 +229,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-### Enterprise Support
-- **📧 Email**: admin-support@yourcompany.com
-- **📱 Teams**: Internal support channel
-- **📋 ServiceNow**: Enterprise ticket system
-
-### Community Support
-- **🐛 Bug Reports**: [GitHub Issues](https://github.com/your-org/dom-style-injector-extension-admin/issues)
-- **💡 Feature Requests**: [GitHub Discussions](https://github.com/your-org/dom-style-injector-extension-admin/discussions)
-- **📖 Documentation**: [Wiki](https://github.com/your-org/dom-style-injector-extension-admin/wiki)
-
-## 🔮 Roadmap
-
-### Version 2.0 (Q3 2025)
-- [x] Admin version with full CRUD capabilities
-- [ ] Microsoft Graph/SharePoint integration
-- [ ] User version (read-only)
-- [ ] Advanced permission management
-
-### Version 2.1 (Q4 2025)
-- [ ] Approval workflows for customizations
-- [ ] Usage analytics and reporting
-- [ ] Advanced CSS selector support
-- [ ] Multi-domain configuration
-
-### Version 3.0 (Q1 2026)
-- [ ] AI-powered customization suggestions
-- [ ] Advanced collaboration features
-- [ ] Performance monitoring and optimization
-- [ ] Mobile extension support
-
-## 👥 Team
-
-- **Platform Team** - *Architecture and infrastructure*
-- **Frontend Team** - *User interface and experience*
-- **Security Team** - *Authentication and compliance*
-- **DevOps Team** - *CI/CD and deployment automation*
+- 📧 Email: <admin-support@yourcompany.com>
+- 📱 Teams: Internal support channel
+- 🐛 Issues: [GitHub Issues](https://github.com/almostsultry/dom-style-injector-extension-admin/issues)
+- 💡 Discussions: [GitHub Discussions](https://github.com/almostsultry/dom-style-injector-extension-admin/discussions)
 
 ---
 
-> **Note**: This is the administrative version designed for IT administrators and power users. End users should use the lightweight user version once available.
+**Note**: This is the administrative version designed for IT administrators and power users. End users should use the lightweight user version once available.
