@@ -1,10 +1,17 @@
 {
   "manifest_version": 3,
   "name": "D365 DOM Style Injector",
-  "version": "1.0.0",
-  "description": "A browser extension for CSS injection and DOM manipulation.",
-  "permissions": ["storage", "identity"],
-  "host_permissions": ["https://*.dynamics.com/"],
+  "version": "2.0.0",
+  "description": "A unified browser extension for CSS injection and DOM manipulation in Dynamics 365",
+  "permissions": ["storage", "identity", "tabs", "alarms", "contextMenus"],
+  "host_permissions": [
+    "https://*.dynamics.com/*",
+    "https://*.crm.dynamics.com/*",
+    "https://*.crm2.dynamics.com/*",
+    "https://*.crm3.dynamics.com/*",
+    "https://*.crm4.dynamics.com/*",
+    "https://*.crm5.dynamics.com/*"
+  ],
   "action": {
     "default_popup": "src/popup/popup.html",
     "default_icon": {
@@ -16,9 +23,31 @@
   "background": {
     "service_worker": "src/scripts/service-worker.js"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.dynamics.com/*",
+        "https://*.crm.dynamics.com/*",
+        "https://*.crm2.dynamics.com/*",
+        "https://*.crm3.dynamics.com/*",
+        "https://*.crm4.dynamics.com/*",
+        "https://*.crm5.dynamics.com/*"
+      ],
+      "js": ["src/scripts/content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "options_page": "src/options/options.html",
   "icons": {
     "16": "assets/icon16.png",
     "48": "assets/icon48.png",
     "128": "assets/icon128.png"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

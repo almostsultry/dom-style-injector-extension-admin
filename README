@@ -1,0 +1,251 @@
+# D365 DOM Style Injector Extension
+
+A unified Chrome/Edge extension for CSS customization in Dynamics 365, with role-based access control through Dataverse security roles.
+
+## 🚀 Key Features
+
+- **Unified Extension**: Single codebase with dynamic UI based on user roles
+- **Role-Based Access**: Admin features for users with System Customizer role
+- **CSS Injection**: Apply custom styles to D365 pages
+- **SharePoint Sync**: Centralized storage for organization-wide customizations
+- **Secure Authentication**: Microsoft identity integration
+
+## 📁 Project Structure (Refactored)
+
+```
+dom-style-injector-extension/
+├── src/
+│   ├── popup/
+│   │   ├── popup.js         # Main popup logic with auth
+│   │   └── popup.css        # Styles for popup
+│   ├── scripts/
+│   │   ├── service-worker.js # Background service worker
+│   │   └── content.js       # CSS injection script
+│   ├── options/
+│   │   ├── options.html     # Extension settings
+│   │   └── options.js       # Settings logic
+│   └── manifest.json        # Extension manifest
+├── assets/                  # Icons and images
+├── build/                   # Build configuration
+│   └── webpack.config.js    # Webpack configuration
+├── dist/                    # Build output (gitignored)
+├── docs/                    # Documentation
+└── package.json            # Dependencies and scripts
+```
+
+## 🔧 Installation & Setup
+
+### Prerequisites
+- Node.js >= 16.0.0
+- Microsoft 365 account with D365 access
+- Azure AD app registration (for authentication)
+
+### Development Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/almostsultry/dom-style-injector-extension-admin.git
+   cd dom-style-injector-extension-admin
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment**
+   - Copy `config/development.example.json` to `config/development.json`
+   - Update with your Azure AD and D365 settings:
+     ```json
+     {
+       "azureAd": {
+         "clientId": "YOUR_CLIENT_ID",
+         "tenantId": "YOUR_TENANT_ID"
+       },
+       "dynamics365": {
+         "orgUrl": "https://yourorg.crm.dynamics.com"
+       }
+     }
+     ```
+
+4. **Build the extension**
+   ```bash
+   npm run build
+   ```
+
+5. **Load in browser**
+   - Open Chrome/Edge extensions page
+   - Enable Developer mode
+   - Click "Load unpacked"
+   - Select the `dist` folder
+
+## 🎯 Usage
+
+### First Time Setup
+1. Click the extension icon
+2. Sign in with your Microsoft account
+3. Extension will detect your role automatically
+
+### For Administrators (System Customizer Role)
+- **Create Customizations**: Define CSS rules for D365 elements
+- **Manage Rules**: Edit, delete, and toggle customizations
+- **Sync to SharePoint**: Publish customizations for all users
+- **Test Changes**: Preview before publishing
+
+### For Standard Users
+- **View Customizations**: See available style modifications
+- **Toggle On/Off**: Enable/disable specific customizations
+- **Sync Updates**: Get latest customizations from SharePoint
+
+## 🔐 Security & Permissions
+
+### Required Permissions
+- `identity`: For Microsoft authentication
+- `storage`: For saving customizations locally
+- `https://*.dynamics.com/`: To inject styles into D365
+
+### Role-Based Access
+- **System Customizer**: Full CRUD operations
+- **Standard Users**: Read-only access with toggle capability
+
+### Data Storage
+- **Local Storage**: User preferences and cache
+- **SharePoint**: Centralized customization repository
+- **No sensitive data**: Only CSS rules and metadata
+
+## 🛠️ Development
+
+### Available Scripts
+```bash
+npm run dev          # Start development mode
+npm run build        # Build for production
+npm run test         # Run tests
+npm run lint         # Lint code
+npm run format       # Format code
+```
+
+### Architecture Overview
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   Popup UI      │────▶│ Service Worker   │────▶│   Dataverse     │
+│  (Role-based)   │     │  (Background)    │     │   (API calls)   │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+         │                       │                         │
+         ▼                       ▼                         ▼
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│ Content Script  │     │ Authentication   │     │  SharePoint     │
+│ (CSS Injection) │     │    (MSAL)        │     │   (Storage)     │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
+
+### Key Components
+
+1. **Popup (popup.js)**
+   - Handles authentication flow
+   - Determines user role
+   - Renders appropriate UI
+
+2. **Service Worker (service-worker.js)**
+   - Manages background tasks
+   - Handles API communication
+   - Caches user roles
+
+3. **Content Script (content.js)**
+   - Injects CSS into D365 pages
+   - Watches for DOM changes
+   - Handles dynamic navigation
+
+## 🧪 Testing
+
+### Manual Testing
+1. Load extension in developer mode
+2. Test role detection with different accounts
+3. Verify CSS injection on D365 pages
+4. Test sync functionality
+
+### Automated Tests
+```bash
+npm test                 # Run all tests
+npm run test:unit       # Unit tests only
+npm run test:e2e        # E2E tests with Playwright
+```
+
+## 📝 Configuration
+
+### Options Page
+Access via extension icon → Settings, or right-click → Options
+
+Configurable settings:
+- D365 Organization URL
+- Sync frequency
+- Cache duration
+- Debug mode
+
+### Environment Variables
+For development, create `.env` file:
+```env
+D365_ORG_URL=https://yourorg.crm.dynamics.com
+AZURE_CLIENT_ID=your-client-id
+AZURE_TENANT_ID=your-tenant-id
+```
+
+## 🚀 Deployment
+
+### Building for Production
+```bash
+npm run build:prod
+```
+
+### Chrome Web Store
+1. Create ZIP of `dist` folder
+2. Upload to Chrome Developer Dashboard
+3. Fill in store listing details
+4. Submit for review
+
+### Microsoft Edge Add-ons
+1. Same package as Chrome
+2. Upload to Partner Center
+3. Complete certification process
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+### Coding Standards
+- ESLint configuration enforced
+- Prettier for formatting
+- Conventional commits
+- 80% test coverage minimum
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file
+
+## 🆘 Support
+
+- **Issues**: [GitHub Issues](https://github.com/almostsultry/dom-style-injector-extension-admin/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/almostsultry/dom-style-injector-extension-admin/discussions)
+- **Email**: support@example.com
+
+## 🔄 Changelog
+
+### Version 2.0.0 (Current)
+- Unified extension architecture
+- Role-based access control
+- Improved authentication flow
+- SharePoint integration placeholder
+
+### Version 1.0.0
+- Initial release
+- Separate admin/user versions
+- Basic CSS injection
+
+---
+
+**Note**: This extension requires proper Azure AD configuration and D365 permissions. Contact your IT administrator for setup assistance.html      # Unified popup with role-based views
+│   │   ├── popup.

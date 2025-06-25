@@ -1,0 +1,261 @@
+/* src/options/options.css - Options page specific styles */
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #f5f7fa;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 40px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 30px;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+}
+
+header h1 {
+    margin: 0 0 10px 0;
+    font-size: 32px;
+    font-weight: 600;
+}
+
+header .subtitle {
+    opacity: 0.9;
+    font-size: 16px;
+}
+
+.config-section {
+    background: white;
+    border-radius: var(--radius-md);
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.config-section h2 {
+    margin: 0 0 20px 0;
+    color: var(--text-primary);
+    font-size: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group input.invalid {
+    border-color: var(--error-color);
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.info-box {
+    background: #f0f4ff;
+    border: 1px solid #d0dcff;
+    border-radius: var(--radius-sm);
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.info-box h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: var(--primary-dark);
+}
+
+.info-box code {
+    display: block;
+    background: white;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    word-break: break-all;
+    margin: 10px 0;
+}
+
+.btn-sm {
+    padding: 5px 12px;
+    font-size: 12px;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.cache-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 15px;
+}
+
+.cache-info p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.cache-info span {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.save-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 30px;
+    padding: 20px;
+    background: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+#save-settings {
+    min-width: 150px;
+}
+
+#save-status {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.status-success {
+    color: var(--success-color);
+}
+
+.status-error {
+    color: var(--error-color);
+}
+
+.status-info {
+    color: var(--primary-color);
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* File input button styling */
+input[type="file"] {
+    display: none;
+}
+
+label.btn {
+    display: inline-block;
+    cursor: pointer;
+}
+
+/* Confirmation dialog */
+.confirm-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.confirm-dialog {
+    background: white;
+    border-radius: var(--radius-md);
+    padding: 30px;
+    max-width: 400px;
+    box-shadow: var(--shadow-lg);
+}
+
+.confirm-dialog h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    color: var(--text-primary);
+}
+
+.confirm-dialog p {
+    margin: 0 0 20px 0;
+    color: var(--text-secondary);
+}
+
+.dialog-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+    .container {
+        padding: 10px;
+    }
+    
+    header {
+        padding: 20px;
+    }
+    
+    header h1 {
+        font-size: 24px;
+    }
+    
+    .config-section {
+        padding: 20px;
+    }
+    
+    .button-group {
+        flex-direction: column;
+    }
+    
+    .save-section {
+        flex-direction: column;
+        gap: 15px;
+    }
+}

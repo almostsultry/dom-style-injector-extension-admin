@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOM Style Injector - Settings</title>
+    <link rel="stylesheet" href="../styles/common.css">
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>DOM Style Injector Settings</h1>
+            <p class="subtitle">Configure your extension settings and authentication</p>
+        </header>
+
+        <main>
+            <!-- D365 Configuration -->
+            <section class="config-section">
+                <h2>Dynamics 365 Configuration</h2>
+                <div class="form-group">
+                    <label for="d365-url">D365 Organization URL</label>
+                    <input type="url" id="d365-url" placeholder="https://yourorg.crm.dynamics.com" required>
+                    <small>Enter your Dynamics 365 organization URL</small>
+                </div>
+            </section>
+
+            <!-- Azure AD Configuration -->
+            <section class="config-section">
+                <h2>Azure AD Configuration</h2>
+                <div class="form-group">
+                    <label for="client-id">Application (Client) ID</label>
+                    <input type="text" id="client-id" placeholder="00000000-0000-0000-0000-000000000000">
+                    <small>From your Azure AD app registration</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tenant-id">Directory (Tenant) ID</label>
+                    <input type="text" id="tenant-id" placeholder="00000000-0000-0000-0000-000000000000">
+                    <small>Your Azure AD tenant ID</small>
+                </div>
+                
+                <div class="info-box">
+                    <h3>Redirect URI for Azure AD</h3>
+                    <p>Add this to your app registration:</p>
+                    <code id="redirect-uri">Loading...</code>
+                    <button id="copy-redirect-uri" class="btn btn-sm">Copy</button>
+                </div>
+            </section>
+
+            <!-- Development Options -->
+            <section class="config-section">
+                <h2>Development Options</h2>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="use-mock-token">
+                        Use mock token for development
+                    </label>
+                </div>
+                
+                <div class="form-group" id="mock-token-group" style="display: none;">
+                    <label for="mock-token">Mock Token (JWT)</label>
+                    <textarea id="mock-token" rows="4" placeholder="Paste a valid JWT token for testing"></textarea>
+                    <small>Warning: Only use this for development/testing</small>
+                </div>
+            </section>
+
+            <!-- Cache Management -->
+            <section class="config-section">
+                <h2>Cache Management</h2>
+                <div class="cache-info">
+                    <p>User role cache: <span id="role-cache-status">Checking...</span></p>
+                    <p>Last sync: <span id="last-sync">Never</span></p>
+                </div>
+                
+                <div class="button-group">
+                    <button id="clear-cache" class="btn btn-secondary">Clear Cache</button>
+                    <button id="force-sync" class="btn btn-secondary">Force Sync</button>
+                </div>
+            </section>
+
+            <!-- Import/Export -->
+            <section class="config-section">
+                <h2>Import/Export Customizations</h2>
+                <div class="button-group">
+                    <button id="export-customizations" class="btn">Export Customizations</button>
+                    <label for="import-file" class="btn">
+                        Import Customizations
+                        <input type="file" id="import-file" accept=".json" style="display: none;">
+                    </label>
+                </div>
+            </section>
+
+            <!-- Save Button -->
+            <div class="save-section">
+                <button id="save-settings" class="btn btn-primary">Save Settings</button>
+                <span id="save-status"></span>
+            </div>
+        </main>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+</html>
