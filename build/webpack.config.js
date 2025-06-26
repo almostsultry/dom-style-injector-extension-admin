@@ -1,15 +1,15 @@
-// build/webpack.config.js
+// build/webpack.config.js - Fixed to match actual file structure
 
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   mode: 'production',
-  // Add content.js to entry points
+  // Updated entry points to match actual file locations
   entry: {
     'popup/popup': './src/popup/popup.js',
-    'scripts/service-worker': './src/scripts/service-worker.js',
-    'scripts/content': './src/scripts/content.js'  // Fixed path to scripts folder
+    'background': './src/background.js',  // Fixed: points to actual background.js file
+    'scripts/content': './src/scripts/content.js'  // Added content script if it exists
   },
   output: {
     path: path.resolve(__dirname, '..', 'dist'),
@@ -19,23 +19,30 @@ module.exports = {
     clean: true, // Clean the dist folder before each build
   },
   plugins: [
-    // This plugin now only needs to copy assets and the main popup HTML.
-    // CSS and other files can be imported directly into the JS if needed.
     new CopyPlugin({
       patterns: [
-        // Look inside the 'src' folder for these assets
-        { from: 'src/assets', to: 'assets' },
+        // Copy assets
+        { from: 'src/assets', to: 'assets', noErrorOnMissing: true },
+
+        // Copy manifest.json
         { from: 'src/manifest.json', to: 'manifest.json' },
 
-        // These paths were already correct
+        // Copy popup files
         { from: 'src/popup/popup.html', to: 'popup/popup.html' },
         { from: 'src/popup/popup.css', to: 'popup/popup.css' },
+
+        // Copy other static files if they exist
+        { from: 'src/options', to: 'options', noErrorOnMissing: true },
+        { from: 'src/styles', to: 'styles', noErrorOnMissing: true },
+
+        // Copy content script if it exists in a different location
+        { from: 'src/scripts/content.js', to: 'scripts/content.js', noErrorOnMissing: true },
       ],
     }),
   ],
   resolve: {
     extensions: ['.js'],
   },
-  // Optional: A source map for easier debugging in the browser.
+  // Source map for easier debugging
   devtool: 'cheap-module-source-map',
 };
