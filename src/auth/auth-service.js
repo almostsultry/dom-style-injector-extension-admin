@@ -1,27 +1,48 @@
-// Microsoft Authentication Library (MSAL) service for admin authentication
-import { msalConfig } from './msal-config.js';
+// src/auth/auth-service.js - Fixed import and configuration issues
+import { msalConfig, loginRequest, graphRequest, getStoredConfig } from './msal-config.js';
 
 let msalInstance = null;
 let currentAccount = null;
 
-// Initialize MSAL instance
+// Initialize MSAL instance with stored or default config
 export async function initializeMSAL() {
   try {
-    // Dynamic import of MSAL library
-    const { PublicClientApplication } = await import('../lib/msal-browser.min.js');
-    
-    msalInstance = new PublicClientApplication(msalConfig);
+    // Get configuration (stored values override defaults)
+    const config = await getStoredConfig();
+
+    // Check if we have required configuration
+    if (config.auth.clientId === 'your-azure-app-client-id-here') {
+      console.warn('MSAL not configured - using placeholder values. Configure in extension options.');
+      throw new Error('MSAL configuration required. Please configure Client ID and Tenant ID in extension options.');
+    }
+
+    // Import MSAL library - fix the import path
+    if (typeof window !== 'undefined' && window.msal) {
+      // MSAL already loaded globally
+      const { PublicClientApplication } = window.msal;
+      msalInstance = new PublicClientApplication(config);
+    } else {
+      // Try to load from expected location
+      try {
+        const msalModule = await import('../lib/msal-browser.min.js');
+        const { PublicClientApplication } = msalModule;
+        msalInstance = new PublicClientApplication(config);
+      } catch (importError) {
+        console.error('Failed to import MSAL library:', importError);
+        throw new Error('MSAL library not found. Ensure msal-browser.min.js is in src/lib/');
+      }
+    }
+
     await msalInstance.initialize();
-    
     console.log('MSAL initialized successfully');
-    
+
     // Check for existing account
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
       currentAccount = accounts[0];
       console.log('Found existing account:', currentAccount.username);
     }
-    
+
     return true;
   } catch (error) {
     console.error('MSAL initialization failed:', error);
@@ -35,36 +56,42 @@ export async function authenticateUser() {
     if (!msalInstance) {
       await initializeMSAL();
     }
-    
-    const loginRequest = {
-      scopes: [
-        'https://graph.microsoft.com/Sites.ReadWrite.All',
-        'https://graph.microsoft.com/User.Read'
-      ],
-      prompt: 'select_account'
-    };
-    
+
     console.log('Starting authentication flow...');
-    
+
+    // Try silent authentication first if we have an account
+    if (currentAccount) {
+      try {
+        const silentRequest = {
+          ...loginRequest,
+          account: currentAccount
+        };
+
+        const silentResponse = await msalInstance.acquireTokenSilent(silentRequest);
+        console.log('Silent authentication successful');
+
+        await storeAuthData(silentResponse);
+        return {
+          success: true,
+          user: {
+            username: silentResponse.account.username,
+            name: silentResponse.account.name,
+            tenantId: silentResponse.account.tenantId
+          }
+        };
+      } catch (silentError) {
+        console.log('Silent auth failed, trying interactive:', silentError);
+      }
+    }
+
     // Use popup authentication
     const response = await msalInstance.loginPopup(loginRequest);
-    
     currentAccount = response.account;
-    
-    // Store authentication info
-    await chrome.storage.local.set({
-      isAuthenticated: true,
-      userInfo: {
-        username: currentAccount.username,
-        name: currentAccount.name,
-        tenantId: currentAccount.tenantId,
-        homeAccountId: currentAccount.homeAccountId
-      },
-      authTimestamp: Date.now()
-    });
-    
+
+    await storeAuthData(response);
+
     console.log('Authentication successful:', currentAccount.username);
-    
+
     return {
       success: true,
       user: {
@@ -73,19 +100,27 @@ export async function authenticateUser() {
         tenantId: currentAccount.tenantId
       }
     };
-    
+
   } catch (error) {
     console.error('Authentication failed:', error);
-    
+
     // Handle specific MSAL errors
-    if (error.name === 'BrowserAuthError') {
+    if (error.name === 'BrowserAuthError' || error.errorCode === 'popup_window_error') {
       return {
         success: false,
-        error: 'Authentication was cancelled or failed. Please try again.',
+        error: 'Authentication popup was blocked or cancelled. Please allow popups and try again.',
         code: 'AUTH_CANCELLED'
       };
     }
-    
+
+    if (error.errorCode === 'invalid_client') {
+      return {
+        success: false,
+        error: 'Invalid Azure AD configuration. Please check your Client ID and Tenant ID in extension options.',
+        code: 'CONFIG_ERROR'
+      };
+    }
+
     return {
       success: false,
       error: error.message || 'Authentication failed',
@@ -95,122 +130,66 @@ export async function authenticateUser() {
 }
 
 // Get access token for Microsoft Graph API
-export async function getAccessToken(scopes = ['https://graph.microsoft.com/Sites.ReadWrite.All']) {
+export async function getAccessToken(scopes = graphRequest.scopes) {
   try {
     if (!msalInstance || !currentAccount) {
       throw new Error('Not authenticated. Please sign in first.');
     }
-    
+
     const tokenRequest = {
       scopes: scopes,
       account: currentAccount
     };
-    
+
     // Try silent token acquisition first
     try {
       const response = await msalInstance.acquireTokenSilent(tokenRequest);
-      console.log('Token acquired silently');
       return response.accessToken;
     } catch (silentError) {
-      console.log('Silent token acquisition failed, trying popup:', silentError);
-      
-      // Fall back to popup
+      console.log('Silent token acquisition failed, trying interactive:', silentError);
+
+      // Fall back to interactive token acquisition
       const response = await msalInstance.acquireTokenPopup(tokenRequest);
-      console.log('Token acquired via popup');
       return response.accessToken;
     }
-    
+
   } catch (error) {
     console.error('Token acquisition failed:', error);
     throw error;
   }
 }
 
-// Check current authentication status
-export async function getAuthStatus() {
+// Check if user is authenticated
+export async function isAuthenticated() {
   try {
     if (!msalInstance) {
       await initializeMSAL();
     }
-    
+
     const accounts = msalInstance.getAllAccounts();
-    const localAuth = await chrome.storage.local.get(['isAuthenticated', 'userInfo']);
-    
-    if (accounts.length > 0 && localAuth.isAuthenticated) {
+    if (accounts.length > 0) {
       currentAccount = accounts[0];
-      
-      // Verify token is still valid by trying to get a new one
+
+      // Try to get a token to verify authentication is still valid
       try {
         await getAccessToken();
-        
-        return {
-          isAuthenticated: true,
-          user: localAuth.userInfo,
-          tokenValid: true
-        };
+        return true;
       } catch (tokenError) {
         console.log('Token validation failed:', tokenError);
-        
-        return {
-          isAuthenticated: true,
-          user: localAuth.userInfo,
-          tokenValid: false,
-          requiresReauth: true
-        };
+        return false;
       }
     }
-    
-    return {
-      isAuthenticated: false,
-      user: null,
-      tokenValid: false
-    };
-    
+
+    return false;
   } catch (error) {
-    console.error('Error checking auth status:', error);
-    return {
-      isAuthenticated: false,
-      user: null,
-      error: error.message
-    };
+    console.error('Authentication check failed:', error);
+    return false;
   }
 }
 
-// Refresh authentication token
-export async function refreshToken() {
-  try {
-    if (!currentAccount) {
-      throw new Error('No current account to refresh token for');
-    }
-    
-    const tokenRequest = {
-      scopes: [
-        'https://graph.microsoft.com/Sites.ReadWrite.All',
-        'https://graph.microsoft.com/User.Read'
-      ],
-      account: currentAccount,
-      forceRefresh: true
-    };
-    
-    const response = await msalInstance.acquireTokenSilent(tokenRequest);
-    
-    console.log('Token refreshed successfully');
-    
-    // Update stored auth info
-    await chrome.storage.local.set({
-      authTimestamp: Date.now(),
-      tokenRefreshed: Date.now()
-    });
-    
-    return response.accessToken;
-    
-  } catch (error) {
-    console.error('Token refresh failed:', error);
-    
-    // If refresh fails, user needs to re-authenticate
-    await logoutUser();
-    throw new Error('Token refresh failed. Please sign in again.');
-  }
+// Get current account
+export function getCurrentAccount() {
+  return currentAccount;
 }
 
 // Logout user
@@ -219,12 +198,12 @@ export async function logoutUser() {
     if (msalInstance && currentAccount) {
       const logoutRequest = {
         account: currentAccount,
-        postLogoutRedirectUri: chrome.runtime.getURL('popup.html')
+        postLogoutRedirectUri: chrome.runtime.getURL('src/popup/popup.html')
       };
-      
+
       await msalInstance.logoutPopup(logoutRequest);
     }
-    
+
     // Clear stored authentication data
     await chrome.storage.local.remove([
       'isAuthenticated',
@@ -232,27 +211,44 @@ export async function logoutUser() {
       'authTimestamp',
       'tokenRefreshed'
     ]);
-    
+
     currentAccount = null;
-    
     console.log('Logout successful');
-    
+
     return { success: true };
-    
+
   } catch (error) {
     console.error('Logout failed:', error);
-    
+
     // Even if logout fails, clear local data
     await chrome.storage.local.remove([
       'isAuthenticated',
-      'userInfo', 
+      'userInfo',
       'authTimestamp',
       'tokenRefreshed'
     ]);
-    
+
     currentAccount = null;
-    
+
     return { success: false, error: error.message };
+  }
+}
+
+// Store authentication data
+async function storeAuthData(authResponse) {
+  try {
+    await chrome.storage.local.set({
+      isAuthenticated: true,
+      userInfo: {
+        username: authResponse.account.username,
+        name: authResponse.account.name,
+        tenantId: authResponse.account.tenantId,
+        homeAccountId: authResponse.account.homeAccountId
+      },
+      authTimestamp: Date.now()
+    });
+  } catch (error) {
+    console.error('Failed to store auth data:', error);
   }
 }
 
@@ -260,97 +256,29 @@ export async function logoutUser() {
 export async function getUserProfile() {
   try {
     const accessToken = await getAccessToken(['https://graph.microsoft.com/User.Read']);
-    
+
     const response = await fetch('https://graph.microsoft.com/v1.0/me', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Graph API request failed: ${response.status}`);
     }
-    
+
     const profile = await response.json();
-    
-    // Update stored user info
+
+    // Store profile data
     await chrome.storage.local.set({
-      userProfile: {
-        id: profile.id,
-        displayName: profile.displayName,
-        givenName: profile.givenName,
-        surname: profile.surname,
-        userPrincipalName: profile.userPrincipalName,
-        mail: profile.mail,
-        jobTitle: profile.jobTitle,
-        department: profile.department,
-        companyName: profile.companyName
-      }
+      userProfile: profile
     });
-    
+
     return profile;
-    
+
   } catch (error) {
     console.error('Failed to get user profile:', error);
     throw error;
   }
 }
-
-// Check if user has required permissions
-export async function checkPermissions(requiredScopes = []) {
-  try {
-    if (!currentAccount) {
-      return { hasPermissions: false, reason: 'Not authenticated' };
-    }
-    
-    // Try to get token with required scopes
-    const accessToken = await getAccessToken(requiredScopes);
-    
-    if (accessToken) {
-      return { hasPermissions: true };
-    }
-    
-    return { hasPermissions: false, reason: 'Token acquisition failed' };
-    
-  } catch (error) {
-    console.error('Permission check failed:', error);
-    
-    return {
-      hasPermissions: false,
-      reason: error.message,
-      requiresConsent: error.errorCode === 'consent_required'
-    };
-  }
-}
-
-// Handle authentication errors
-export function handleAuthError(error) {
-  console.error('Authentication error:', error);
-  
-  const errorMap = {
-    'popup_window_error': 'Pop-up was blocked. Please allow pop-ups for this extension.',
-    'user_cancelled': 'Authentication was cancelled.',
-    'consent_required': 'Additional permissions are required. Please grant consent.',
-    'interaction_required': 'User interaction is required to complete authentication.',
-    'login_required': 'Please sign in to continue.',
-    'token_renewal_error': 'Token renewal failed. Please sign in again.',
-    'invalid_grant': 'Authentication session has expired. Please sign in again.',
-    'network_error': 'Network error occurred. Please check your connection.',
-    'temporarily_unavailable': 'Authentication service is temporarily unavailable. Please try again later.'
-  };
-  
-  const userMessage = errorMap[error.errorCode] || error.message || 'An unexpected authentication error occurred.';
-  
-  return {
-    userMessage,
-    errorCode: error.errorCode,
-    technical: error.message,
-    timestamp: Date.now()
-  };
-}
-
-// Initialize authentication on module load
-initializeMSAL().catch(error => {
-  console.error('Failed to initialize MSAL on load:', error);
-});

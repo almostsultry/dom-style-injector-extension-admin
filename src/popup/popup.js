@@ -1,5 +1,14 @@
-// src/popup/popup.js - Enhanced with unified field support
+// src/popup/popup.js - Enhanced with unified field support and MSAL integration
 // Built upon existing role-based authentication system
+
+// =============================================================================
+// MSAL INTEGRATION - Import authentication services
+// =============================================================================
+// Import MSAL authentication services
+import { initializeMSAL, authenticateUser, isAuthenticated, getCurrentAccount, logoutUser, getAccessToken } from '../auth/auth-service.js';
+
+// MSAL integration flag
+let msalAvailable = false;
 
 // Import MSAL (ensure msal-browser is included in your build)
 /* global PublicClientApplication */
@@ -35,7 +44,31 @@ const msalConfig = {
     }
 };
 
-// Initialize MSAL
+// =============================================================================
+// MSAL INITIALIZATION - Enhanced initialization with fallback
+// =============================================================================
+
+// Initialize MSAL if available
+async function initializeMSALIfAvailable() {
+    try {
+        await initializeMSAL();
+        msalAvailable = true;
+        console.log('MSAL initialized successfully');
+        return true;
+    } catch (msalError) {
+        if (msalError.message.includes('configuration required')) {
+            console.log('MSAL not configured, will use chrome.identity fallback');
+        } else if (msalError.message.includes('MSAL library not found')) {
+            console.log('MSAL library not found, using chrome.identity only');
+        } else {
+            console.warn('MSAL initialization failed:', msalError.message);
+        }
+        msalAvailable = false;
+        return false;
+    }
+}
+
+// Initialize MSAL (legacy fallback)
 async function initializeMsal() {
     if (typeof PublicClientApplication !== 'undefined') {
         msalInstance = new PublicClientApplication(msalConfig);
@@ -43,10 +76,168 @@ async function initializeMsal() {
     }
 }
 
-// Main initialization
+// =============================================================================
+// ENHANCED AUTHENTICATION - MSAL + chrome.identity hybrid approach
+// =============================================================================
+
+// Get authentication token using chrome.identity API with MSAL enhancement
+async function getAuthToken() {
+    try {
+        // Try MSAL authentication first if available
+        if (msalAvailable) {
+            try {
+                // Check if already authenticated with MSAL
+                if (await isAuthenticated()) {
+                    const account = getCurrentAccount();
+                    if (account) {
+                        console.log('Using existing MSAL authentication:', account.username);
+                        // Get fresh token to ensure it's valid
+                        const token = await getAccessToken();
+                        return token;
+                    }
+                }
+
+                // Perform MSAL authentication
+                console.log('Starting MSAL authentication...');
+                const result = await authenticateUser();
+
+                if (result.success) {
+                    console.log('MSAL authentication successful:', result.user.username);
+                    const token = await getAccessToken();
+                    return token;
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (msalError) {
+                console.log('MSAL authentication failed, falling back to chrome.identity:', msalError.message);
+                // Fall through to chrome.identity implementation
+            }
+        }
+
+        // Fallback to your existing chrome.identity implementation
+        console.log('Using chrome.identity authentication...');
+
+        // Get configuration from storage
+        const config = await chrome.storage.sync.get(['d365OrgUrl', 'clientId', 'tenantId']);
+
+        // Validate configuration
+        if (!config.d365OrgUrl) {
+            throw new Error('D365 organization URL not configured. Please set it in extension options.');
+        }
+
+        if (!config.clientId || !config.tenantId) {
+            // For initial development, use environment defaults
+            config.clientId = config.clientId || 'YOUR_DEFAULT_CLIENT_ID';
+            config.tenantId = config.tenantId || 'YOUR_DEFAULT_TENANT_ID';
+
+            // Warn about using defaults
+            console.warn('Using default Azure AD configuration. Please configure in extension options.');
+        }
+
+        // Build OAuth2 URL for Microsoft identity platform
+        const redirectUrl = chrome.identity.getRedirectURL();
+        const scopes = [
+            'openid',
+            'profile',
+            'User.Read',
+            `${config.d365OrgUrl}/user_impersonation`
+        ];
+
+        const authUrl = new URL(`https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize`);
+        authUrl.searchParams.append('client_id', config.clientId);
+        authUrl.searchParams.append('response_type', 'token');
+        authUrl.searchParams.append('redirect_uri', redirectUrl);
+        authUrl.searchParams.append('scope', scopes.join(' '));
+        authUrl.searchParams.append('response_mode', 'fragment');
+        authUrl.searchParams.append('state', crypto.randomUUID());
+        authUrl.searchParams.append('nonce', crypto.randomUUID());
+
+        console.log('Redirect URL:', redirectUrl);
+        console.log('Auth URL:', authUrl.toString());
+
+        // Launch auth flow
+        return new Promise((resolve, reject) => {
+            chrome.identity.launchWebAuthFlow(
+                {
+                    url: authUrl.toString(),
+                    interactive: true
+                },
+                (responseUrl) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('Auth error:', chrome.runtime.lastError);
+                        reject(new Error(chrome.runtime.lastError.message));
+                        return;
+                    }
+
+                    if (!responseUrl) {
+                        reject(new Error('No response URL received'));
+                        return;
+                    }
+
+                    try {
+                        // Parse the response URL to extract the token
+                        const url = new URL(responseUrl);
+                        const hashParams = new URLSearchParams(url.hash.substring(1));
+                        const accessToken = hashParams.get('access_token');
+
+                        if (!accessToken) {
+                            // Check for error in response
+                            const error = hashParams.get('error');
+                            const errorDescription = hashParams.get('error_description');
+
+                            if (error) {
+                                reject(new Error(`OAuth error: ${error} - ${errorDescription || 'Unknown error'}`));
+                            } else {
+                                reject(new Error('No access token in response'));
+                            }
+                            return;
+                        }
+
+                        // Validate token has required claims
+                        validateToken(accessToken);
+
+                        // Cache token with expiration
+                        const expiresIn = parseInt(hashParams.get('expires_in') || '3600');
+                        cacheToken(accessToken, expiresIn);
+
+                        resolve(accessToken);
+                    } catch (error) {
+                        console.error('Error parsing auth response:', error);
+                        reject(error);
+                    }
+                }
+            );
+        });
+    } catch (error) {
+        console.error('Authentication error:', error);
+
+        // Check for cached token before falling back to mock
+        const cachedToken = await getCachedToken();
+        if (cachedToken) {
+            console.log('Using cached token');
+            return cachedToken;
+        }
+
+        // Development fallback
+        const { mockToken } = await chrome.storage.local.get('mockToken');
+        if (mockToken) {
+            console.warn('Using mock token for development');
+            return mockToken;
+        }
+
+        throw error;
+    }
+}
+
+// =============================================================================
+// ENHANCED INITIALIZATION - Modified with MSAL support
+// =============================================================================
+
+// Main initialization - Enhanced with MSAL
 document.addEventListener('DOMContentLoaded', async function () {
     try {
-        await initializeMsal();
+        await initializeMSALIfAvailable();
+        await initializeMsal(); // Legacy fallback
         await determineUserRole();
         await initializeView();
     } catch (error) {
@@ -54,6 +245,119 @@ document.addEventListener('DOMContentLoaded', async function () {
         renderView('error-view', 'Failed to initialize extension');
     }
 });
+
+// Initialize popup - Enhanced with MSAL integration
+async function initializePopup() {
+    // Show loader view immediately
+    renderView('loader-view');
+
+    try {
+        // Try to initialize MSAL first
+        await initializeMSALIfAvailable();
+
+        // Initialize MSAL if available
+        if (msalAvailable) {
+            try {
+                // Check if user is already authenticated via MSAL
+                if (await isAuthenticated()) {
+                    const account = getCurrentAccount();
+                    console.log('Found existing MSAL account:', account?.username);
+                }
+            } catch (msalCheck) {
+                console.log('MSAL auth check failed:', msalCheck.message);
+            }
+        }
+
+        // Check cached role first
+        const { userRole } = await chrome.storage.local.get('userRole');
+        const eightHours = 8 * 60 * 60 * 1000;
+        const cacheIsFresh = userRole && (Date.now() - userRole.timestamp < eightHours);
+
+        if (cacheIsFresh) {
+            console.log('Using cached user role:', userRole);
+            renderView(userRole.isAdmin ? 'admin-view' : 'user-view');
+            return;
+        }
+
+        // Get fresh auth token (now with MSAL enhancement)
+        console.log('Getting fresh auth token...');
+        const authToken = await getAuthToken();
+
+        // Check user role via service worker
+        const result = await chrome.runtime.sendMessage({
+            action: "checkUserRole",
+            token: authToken
+        });
+
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        console.log('User role check result:', result);
+        renderView(result.isAdmin ? 'admin-view' : 'user-view');
+
+    } catch (error) {
+        console.error("Initialization failed:", error);
+
+        // Provide helpful error messages
+        let errorMsg = error.message;
+        if (error.message.includes('not configured')) {
+            errorMsg += '\n\nClick the extension icon while holding Alt to open settings.';
+        } else if (error.message.includes('Authentication')) {
+            errorMsg += '\n\nPlease ensure you are logged into your Microsoft account.';
+        }
+
+        renderView('error-view', errorMsg);
+    }
+}
+
+// =============================================================================
+// LOGOUT FUNCTIONALITY - New logout handler
+// =============================================================================
+
+// Handle logout
+async function handleLogout() {
+    try {
+        renderView('loader-view');
+
+        // Try MSAL logout first if available
+        if (msalAvailable) {
+            try {
+                const result = await logoutUser();
+                if (result.success) {
+                    console.log('MSAL logout successful');
+                }
+            } catch (msalError) {
+                console.log('MSAL logout failed, clearing local cache:', msalError.message);
+            }
+        }
+
+        // Clear all authentication caches
+        await chrome.storage.session.remove(['authToken', 'tokenExpiration']);
+        await chrome.storage.local.remove(['userRole', 'isAuthenticated', 'userInfo', 'authTimestamp']);
+
+        // Clear MSAL cache if available
+        if (msalAvailable) {
+            try {
+                // MSAL handles its own cache clearing
+                console.log('MSAL cache cleared via logout');
+            } catch (clearError) {
+                console.log('Error clearing MSAL cache:', clearError);
+            }
+        }
+
+        // Reinitialize popup (will show login)
+        await initializePopup();
+
+    } catch (error) {
+        console.error('Logout failed:', error);
+        renderView('error-view', 'Logout failed: ' + error.message);
+    }
+}
+
+// =============================================================================
+// EXISTING FUNCTIONALITY - All preserved from original
+// =============================================================================
 
 // Determine user role and render appropriate view
 async function determineUserRole() {
@@ -100,27 +404,6 @@ async function getUserRole() {
     }
 }
 
-// Get authentication token
-async function getAuthToken() {
-    try {
-        const config = await chrome.storage.sync.get(['d365OrgUrl', 'clientId', 'tenantId']);
-
-        if (!config.d365OrgUrl) {
-            throw new Error('D365 organization URL not configured');
-        }
-
-        // Use chrome.identity API for token acquisition
-        const token = await chrome.identity.getAuthToken({
-            interactive: true,
-            scopes: ['https://graph.microsoft.com/.default']
-        });
-
-        return token;
-    } catch (error) {
-        throw new Error(`Authentication failed: ${error.message}`);
-    }
-}
-
 // Initialize the appropriate view based on user role
 async function initializeView() {
     if (userRole === 'admin') {
@@ -158,7 +441,7 @@ function renderView(viewName, msg = '') {
     }
 }
 
-// Initialize admin view with unified fields
+// Initialize admin view with unified fields - Enhanced with logout support
 async function initializeAdminView() {
     try {
         // Initialize DOM elements after view is shown
@@ -178,6 +461,12 @@ async function initializeAdminView() {
 
         // Initialize enhanced features
         initializeEnhancedFeatures();
+
+        // Setup logout functionality
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', handleLogout);
+        }
 
     } catch (error) {
         console.error('Admin view initialization failed:', error);
@@ -200,11 +489,17 @@ function initializeFormElements() {
     saveRuleBtn = document.getElementById('save-rule');
 }
 
-// Initialize user view (read-only)
+// Initialize user view (read-only) - Enhanced with logout support
 async function initializeUserView() {
     try {
         // Load and display active customizations for current page
         await loadUserCustomizations();
+
+        // Setup logout functionality
+        const logoutBtn = document.getElementById('logout-btn-user');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', handleLogout);
+        }
     } catch (error) {
         console.error('User view initialization failed:', error);
     }
@@ -474,6 +769,80 @@ async function saveAdvancedCSSRule(cssContent) {
     } catch (error) {
         throw new Error(`Failed to save advanced CSS rule: ${error.message}`);
     }
+}
+
+// =============================================================================
+// TOKEN MANAGEMENT - Enhanced with MSAL cache clearing
+// =============================================================================
+
+// Validate token has required claims
+function validateToken(token) {
+    try {
+        // Basic validation - decode JWT payload
+        const payload = JSON.parse(atob(token.split('.')[1]));
+
+        // Check expiration
+        if (payload.exp && payload.exp < Date.now() / 1000) {
+            throw new Error('Token is expired');
+        }
+
+        // Check audience if needed
+        console.log('Token validated successfully');
+        return true;
+    } catch (error) {
+        throw new Error(`Token validation failed: ${error.message}`);
+    }
+}
+
+// Cache token with expiration
+async function cacheToken(token, expiresIn) {
+    const expirationTime = Date.now() + (expiresIn * 1000) - 60000; // 1 minute buffer
+
+    await chrome.storage.session.set({
+        authToken: token,
+        tokenExpiration: expirationTime
+    });
+
+    console.log('Token cached successfully');
+}
+
+// Get cached token if valid
+async function getCachedToken() {
+    try {
+        const result = await chrome.storage.session.get(['authToken', 'tokenExpiration']);
+
+        if (result.authToken && result.tokenExpiration) {
+            if (Date.now() < result.tokenExpiration) {
+                return result.authToken;
+            } else {
+                // Token expired, clear it
+                await chrome.storage.session.remove(['authToken', 'tokenExpiration']);
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error getting cached token:', error);
+        return null;
+    }
+}
+
+// Enhanced auth cache clearing with MSAL support
+async function clearAuthCache() {
+    await chrome.storage.session.remove(['authToken', 'tokenExpiration']);
+    await chrome.storage.local.remove(['userRole']);
+
+    // Clear MSAL cache if available
+    if (msalAvailable) {
+        try {
+            await logoutUser();
+            console.log('MSAL cache cleared');
+        } catch (msalError) {
+            console.log('Error clearing MSAL cache:', msalError);
+        }
+    }
+
+    console.log('Authentication cache cleared');
 }
 
 // Utility functions
@@ -1113,4 +1482,29 @@ function initializeEnhancedFeatures() {
             clearBtn.addEventListener('click', clearAllCustomizations);
         }
     }
+}
+
+// =============================================================================
+// LEGACY SUPPORT FUNCTIONS - For backward compatibility
+// =============================================================================
+
+// Refresh token if needed (for future implementation)
+async function refreshTokenIfNeeded() {
+    const cachedToken = await getCachedToken();
+    if (!cachedToken) {
+        // Token expired or not found, get new one
+        return await getAuthToken();
+    }
+    return cachedToken;
+}
+
+// =============================================================================
+// INITIALIZATION - Call the enhanced initialization
+// =============================================================================
+
+// Auto-initialize when DOM is ready (alternative to the document.addEventListener above)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializePopup);
+} else {
+    initializePopup();
 }

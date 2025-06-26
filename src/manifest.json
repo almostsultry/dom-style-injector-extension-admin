@@ -1,54 +1,59 @@
 {
   "manifest_version": 3,
   "name": "D365 DOM Style Injector",
-  "version": "2.0.7",
-  "description": "Inject custom CSS and JavaScript into D365 and SharePoint pages with role-based administration",
+  "version": "2.0.8",
+  "description": "A unified browser extension for CSS injection and DOM manipulation in Dynamics 365",
   "permissions": [
-    "identity",
     "storage",
-    "activeTab",
-    "scripting",
-    "alarms"
+    "identity",
+    "tabs",
+    "alarms",
+    "contextMenus"
   ],
   "host_permissions": [
-    "*://*.dynamics.com/*",
-    "*://*.crm.dynamics.com/*",
-    "*://*.sharepoint.com/*",
+    "https://*.dynamics.com/*",
+    "https://*.crm.dynamics.com/*",
+    "https://*.crm2.dynamics.com/*",
+    "https://*.crm3.dynamics.com/*",
+    "https://*.crm4.dynamics.com/*",
+    "https://*.crm5.dynamics.com/*",
     "https://login.microsoftonline.com/*",
-    "https://graph.microsoft.com/*"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "*://*.dynamics.com/*",
-        "*://*.crm.dynamics.com/*",
-        "*://*.sharepoint.com/*"
-      ],
-      "js": [
-        "scripts/content.js"
-      ],
-      "run_at": "document_end"
-    }
+    "https://graph.microsoft.com/*",
+    "https://*.sharepoint.com/*"
   ],
   "action": {
-    "default_popup": "popup/popup.html",
-    "default_title": "D365 DOM Style Injector",
+    "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "assets/icon16.png",
       "48": "assets/icon48.png",
       "128": "assets/icon128.png"
     }
   },
+  "background": {
+    "service_worker": "src/scripts/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.dynamics.com/*",
+        "https://*.crm.dynamics.com/*",
+        "https://*.crm2.dynamics.com/*",
+        "https://*.crm3.dynamics.com/*",
+        "https://*.crm4.dynamics.com/*",
+        "https://*.crm5.dynamics.com/*"
+      ],
+      "js": [
+        "src/scripts/content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "options_page": "src/options/options.html",
   "icons": {
     "16": "assets/icon16.png",
     "48": "assets/icon48.png",
     "128": "assets/icon128.png"
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self';"
   },
   "web_accessible_resources": [
     {
@@ -56,9 +61,11 @@
         "assets/*"
       ],
       "matches": [
-        "*://*.dynamics.com/*",
-        "*://*.sharepoint.com/*"
+        "<all_urls>"
       ]
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://*.dynamics.com https://*.sharepoint.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self';"
+  }
 }
