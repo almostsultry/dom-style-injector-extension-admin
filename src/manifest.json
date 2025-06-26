@@ -28,7 +28,7 @@
         "*://*.sharepoint.com/*"
       ],
       "js": [
-        "content.js"
+        "scripts/content.js"
       ],
       "run_at": "document_end"
     }
