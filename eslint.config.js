@@ -39,7 +39,7 @@ export default [
     },
     rules: {
       'no-console': [
-        'warn',
+        'off',
         {
           allow: ['warn', 'error'],
         },
