@@ -9,24 +9,93 @@
 </head>
 
 <body>
+    <!-- Loader View - Authentication -->
     <div id="loader-view">
         <p>Authenticating and checking permissions...</p>
         <div class="spinner"></div>
     </div>
 
+    <!-- Admin View - Enhanced with unified fields -->
     <div id="admin-view" class="view">
         <h1>Style Administrator</h1>
         <p>Create and manage injection rules for your organization.</p>
-        <textarea id="css-editor" placeholder="Enter custom CSS..."></textarea>
-        <button id="save-rule">Save Rule</button>
+
+        <!-- Status message area -->
+        <div id="status" class="status" style="display: none;"></div>
+
+        <!-- Style Creation Form -->
+        <form id="styleForm">
+            <div class="form-group">
+                <label for="targets">Target(s)</label>
+                <input type="text" id="targets" placeholder='e.g., data-id="editFormRoot"; class="form-header"'
+                    title="Enter one or more element properties in format: property=&quot;value&quot;. Use semicolons to separate multiple targets.">
+                <small class="form-hint">
+                    Format: property="value". Use semicolons for multiple targets.
+                    <br>Examples: id="myElement" or data-id="root"; class="header"
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="styles">Style(s)</label>
+                <input type="text" id="styles" placeholder='e.g., background-color: #ff0000; border: 1px solid blue'
+                    title="Enter one or more CSS properties in format: property: value. Use semicolons to separate multiple styles.">
+                <small class="form-hint">
+                    Format: property: value. Use semicolons for multiple styles.
+                    <br>Examples: color: red or background-color: #fff; padding: 10px
+                </small>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" id="clearBtn">Clear</button>
+                <button type="submit">Apply Style</button>
+                <button type="button" id="saveBtn" style="display: none;">Save Customization</button>
+            </div>
+        </form>
+
+        <!-- Query String Section -->
+        <div id="queryStringSection" class="section" style="display: none;">
+            <h3>URL Parameters</h3>
+            <p class="form-hint">Select which URL parameters should trigger this customization:</p>
+            <div id="queryStringList"></div>
+        </div>
+
+        <!-- Existing Customizations -->
+        <div class="section">
+            <h3>Existing Customizations</h3>
+            <div id="existingCustomizations" class="customization-list">
+                <div class="empty-state">
+                    <p>No customizations found</p>
+                    <small>Create your first style rule above</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced CSS Editor -->
+        <div class="section">
+            <h3>Advanced CSS Editor</h3>
+            <textarea id="css-editor" placeholder="Enter custom CSS rules for advanced styling..."></textarea>
+            <button id="save-rule">Save Advanced Rule</button>
+        </div>
     </div>
 
+    <!-- User View - Read-only -->
     <div id="user-view" class="view">
         <h1>DOM Style Injector</h1>
         <p>Custom enterprise styles are being applied.</p>
         <p>Please contact your System Customizer to request changes.</p>
+
+        <!-- Show current customizations for this page -->
+        <div class="section">
+            <h3>Active Customizations</h3>
+            <div id="user-customizations" class="customization-list">
+                <div class="empty-state">
+                    <p>No customizations active on this page</p>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- Error View -->
     <div id="error-view" class="view">
         <h1>Error</h1>
         <p id="error-message">An error occurred.</p>
