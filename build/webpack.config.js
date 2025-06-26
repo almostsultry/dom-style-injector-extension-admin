@@ -5,10 +5,11 @@ const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   mode: 'production',
-  // The entry points now clearly map to their source locations.
+  // Add content.js to entry points
   entry: {
     'popup/popup': './src/popup/popup.js',
-    'scripts/service-worker': './src/scripts/service-worker.js'
+    'scripts/service-worker': './src/scripts/service-worker.js',
+    'scripts/content': './src/scripts/content.js'  // Fixed path to scripts folder
   },
   output: {
     path: path.resolve(__dirname, '..', 'dist'),
@@ -25,10 +26,10 @@ module.exports = {
         // Look inside the 'src' folder for these assets
         { from: 'src/assets', to: 'assets' },
         { from: 'src/manifest.json', to: 'manifest.json' },
-    
+
         // These paths were already correct
-        { from: 'src/popup/popup.html', to: 'src/popup/popup.html' },
-        { from: 'src/popup/popup.css', to: 'src/popup/popup.css' },
+        { from: 'src/popup/popup.html', to: 'popup/popup.html' },
+        { from: 'src/popup/popup.css', to: 'popup/popup.css' },
       ],
     }),
   ],
