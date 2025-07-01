@@ -22,7 +22,7 @@
     "https://*.sharepoint.com/*"
   ],
   "action": {
-    "default_popup": "src/popup/popup.html",
+    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "assets/icon16.png",
       "48": "assets/icon48.png",
@@ -30,7 +30,7 @@
     }
   },
   "background": {
-    "service_worker": "src/scripts/service-worker.js"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
@@ -43,13 +43,13 @@
         "https://*.crm5.dynamics.com/*"
       ],
       "js": [
-        "src/scripts/content.js"
+        "content.js"
       ],
       "run_at": "document_idle",
       "all_frames": true
     }
   ],
-  "options_page": "src/options/options.html",
+  "options_page": "options/options.html",
   "icons": {
     "16": "assets/icon16.png",
     "48": "assets/icon48.png",

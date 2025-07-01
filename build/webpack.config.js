@@ -36,7 +36,7 @@ module.exports = {
         { from: 'src/styles', to: 'styles', noErrorOnMissing: true },
 
         // Copy content script if it exists in a different location
-        { from: 'src/scripts/content.js', to: 'scripts/content.js', noErrorOnMissing: true },
+        { from: 'src/scripts/content.js', to: 'content.js', noErrorOnMissing: true },
       ],
     }),
   ],

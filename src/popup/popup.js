@@ -19,6 +19,8 @@ const adminView = document.getElementById('admin-view');
 const userView = document.getElementById('user-view');
 const errorView = document.getElementById('error-view');
 const errorMessage = document.getElementById('error-message');
+const openSettingsBtn = document.getElementById('open-settings-btn');
+const retryAuthBtn = document.getElementById('retry-auth-btn');
 
 // Form elements (unified fields)
 let form, targetsInput, stylesInput, clearBtn, saveBtn, status;
@@ -30,6 +32,76 @@ let currentTab;
 let currentDomain;
 let userRole = null;
 let msalInstance = null;
+
+// =============================================================================
+// SETTINGS NAVIGATION - Enhanced initialization with fallback
+// =============================================================================
+
+/**
+ * Open extension options/settings page with multiple fallback methods
+ */
+function openSettingsPage() {
+    try {
+        // Method 1: Try to open options page directly
+        if (chrome.runtime.openOptionsPage) {
+            chrome.runtime.openOptionsPage();
+            return;
+        }
+
+        // Method 2: Fallback - construct options URL manually
+        const optionsUrl = chrome.runtime.getURL('src/options/options.html');
+        chrome.tabs.create({ url: optionsUrl });
+
+    } catch (error) {
+        console.error('Failed to open settings:', error);
+
+        // Method 3: Last resort - show manual instructions
+        alert(
+            'Please open extension settings manually:\n\n' +
+            '1. Right-click the extension icon\n' +
+            '2. Select "Options" from the menu\n' +
+            'OR\n' +
+            '1. Go to chrome://extensions\n' +
+            '2. Find "D365 DOM Style Injector"\n' +
+            '3. Click "Details" then "Extension options"'
+        );
+    }
+}
+
+/**
+ * Retry authentication after configuration changes
+ */
+async function retryAuthentication() {
+    try {
+        // Clear any cached authentication data using your existing function
+        await clearAuthCache();
+
+        // Show loader using your existing renderView function
+        renderView('loader-view');
+
+        // Re-initialize using your existing initializePopup function
+        await initializePopup();
+
+    } catch (error) {
+        console.error('Retry failed:', error);
+        renderView('error-view', 'Retry failed: ' + error.message);
+    }
+}
+
+/**
+ * Set up event listeners for error view settings navigation buttons
+ */
+function setupErrorViewEventListeners() {
+    if (openSettingsBtn && !openSettingsBtn.hasSettingsListener) {
+        openSettingsBtn.addEventListener('click', openSettingsPage);
+        openSettingsBtn.hasSettingsListener = true; // Prevent duplicate listeners
+    }
+
+    if (retryAuthBtn && !retryAuthBtn.hasRetryListener) {
+        retryAuthBtn.addEventListener('click', retryAuthentication);
+        retryAuthBtn.hasRetryListener = true; // Prevent duplicate listeners
+    }
+}
 
 // MSAL Configuration
 const msalConfig = {
@@ -122,7 +194,7 @@ async function getAuthToken() {
 
         // Validate configuration
         if (!config.d365OrgUrl) {
-            throw new Error('D365 organization URL not configured. Please set it in extension options.');
+            throw new Error('Extension configuration required. Please configure your D365 organization URL and Azure AD settings to continue.');
         }
 
         if (!config.clientId || !config.tenantId) {
@@ -301,10 +373,16 @@ async function initializePopup() {
 
         // Provide helpful error messages
         let errorMsg = error.message;
-        if (error.message.includes('not configured')) {
-            errorMsg += '\n\nClick the extension icon while holding Alt to open settings.';
+        
+        // Customize error message based on error type
+        if (error.message.includes('not configured') || error.message.includes('configuration required')) {
+            errorMsg = 'Extension configuration required. Please configure your D365 organization URL and Azure AD settings to continue.';
         } else if (error.message.includes('Authentication')) {
-            errorMsg += '\n\nPlease ensure you are logged into your Microsoft account.';
+            errorMsg = 'Authentication failed. Please ensure you are logged into your Microsoft account and try again.';
+        } else if (error.message.includes('cancelled')) {
+            errorMsg = 'Authentication was cancelled. Please try again when ready to sign in.';
+        } else if (error.message.includes('OAuth error')) {
+            errorMsg = 'OAuth authentication error. Please check your Azure AD configuration and try again.';
         }
 
         renderView('error-view', errorMsg);
@@ -437,6 +515,7 @@ function renderView(viewName, msg = '') {
         case 'error-view':
             errorMessage.textContent = msg;
             errorView.style.display = 'block';
+            setupErrorViewEventListeners();
             break;
     }
 }
