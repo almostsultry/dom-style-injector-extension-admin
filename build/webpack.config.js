@@ -44,7 +44,6 @@ module.exports = {
 
         // Copy popup files
         { from: 'src/popup/popup.html', to: 'popup/popup.html' },
-        { from: 'src/popup/popup.css', to: 'popup/popup.css' },
 
         // Copy other static files if they exist
         { from: 'src/options', to: 'options', noErrorOnMissing: true },
