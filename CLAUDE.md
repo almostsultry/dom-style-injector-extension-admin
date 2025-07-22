@@ -136,14 +136,14 @@ npm run deploy:edge
 ### Build Process
 The build system uses Webpack with specific entry points:
 - `src/popup/popup.js` → `dist/popup/popup.js`
-- `src/background.js` → `dist/background.js`
+- `src/scripts/background.js` → `dist/scripts/background.js`
 - `src/scripts/content.js` → `dist/scripts/content.js`
 
 ## Architecture
 
 ### Core Components
 - **Popup UI** (`src/popup/`): Extension interface for managing CSS/JS injection rules
-- **Background Service Worker** (`src/background.js`): Handles Entra External ID auth and Dataverse and SharePoint sync (admin version only)
+- **Background Service Worker** (`src/scripts/background.js`): Handles Entra External ID auth and Dataverse and SharePoint sync (admin version only)
 - **Content Scripts** (`src/scripts/content.js`): Injects styles into target pages
 - **Authentication** (`src/auth/`): MSAL integration for Microsoft Graph API access
 - **Sync Services** (`src/sync/`): SharePoint integration for rule synchronization

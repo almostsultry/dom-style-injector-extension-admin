@@ -8,8 +8,8 @@ module.exports = {
   // Updated entry points to match actual file locations
   entry: {
     'popup/popup': './src/popup/popup.js',
-    'background': './src/background.js',  // Fixed: points to actual background.js file
-    'scripts/content': './src/scripts/content.js'  // Added content script if it exists
+    'scripts/background': './src/scripts/background.js',  // Moved to scripts directory
+    'scripts/content': './src/scripts/content.js'  // Content script in same directory
   },
   output: {
     path: path.resolve(__dirname, '..', 'dist'),
