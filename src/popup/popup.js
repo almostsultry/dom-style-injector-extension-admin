@@ -216,7 +216,20 @@ const elements = {
     userTotalRules: document.getElementById('user-total-rules'),
     userActiveRules: document.getElementById('user-active-rules'),
     userLastSync: document.getElementById('user-last-sync'),
-    copyDiagnosticsBtn: document.getElementById('copy-diagnostics')
+    copyDiagnosticsBtn: document.getElementById('copy-diagnostics'),
+    
+    // Screenshot elements
+    screenshotBtn: document.getElementById('screenshot-btn'),
+    screenshotOptions: document.getElementById('screenshot-options'),
+    doScreenshotBtn: document.getElementById('do-screenshot'),
+    cancelScreenshotBtn: document.getElementById('cancel-screenshot'),
+    screenshotStatusDiv: document.getElementById('screenshot-status'),
+    screenshotSelector: document.getElementById('screenshot-selector'),
+    screenshotMarkup: document.getElementById('screenshot-markup'),
+    elementSelectorGroup: document.getElementById('element-selector-group'),
+    
+    // Eyedropper elements
+    eyedropperBtn: document.getElementById('eyedropper-btn')
 };
 
 // =============================================================================
@@ -661,6 +674,10 @@ async function initializePopup() {
         
         // Initialize search/filter manager
         await initializeSearchFilterManager();
+        
+        // Initialize screenshot and eyedropper managers
+        await initializeScreenshotManager();
+        await initializeEyedropperManager();
         // Check license first
         const licenseCheck = await chrome.runtime.sendMessage({ action: 'checkLicense' });
         
@@ -1091,6 +1108,31 @@ function setupEnhancedEventListeners() {
     
     if (elements.copyDiagnosticsBtn) {
         elements.copyDiagnosticsBtn.addEventListener('click', copyDiagnostics);
+    }
+    
+    // Screenshot event listeners
+    if (elements.screenshotBtn) {
+        elements.screenshotBtn.addEventListener('click', showScreenshotOptions);
+    }
+    
+    if (elements.doScreenshotBtn) {
+        elements.doScreenshotBtn.addEventListener('click', handleScreenshot);
+    }
+    
+    if (elements.cancelScreenshotBtn) {
+        elements.cancelScreenshotBtn.addEventListener('click', hideScreenshotOptions);
+    }
+    
+    // Screenshot type change listener
+    document.addEventListener('change', (e) => {
+        if (e.target.name === 'screenshot-type') {
+            toggleElementSelectorGroup(e.target.value === 'element');
+        }
+    });
+    
+    // Eyedropper event listener
+    if (elements.eyedropperBtn) {
+        elements.eyedropperBtn.addEventListener('click', handleEyedropper);
     }
 }
 
@@ -2484,6 +2526,12 @@ window.deleteCustomization = async function (selector, property, queryPattern) {
 // =============================================================================
 let searchFilterManager = null;
 
+// =============================================================================
+// SCREENSHOT & EYEDROPPER MANAGERS
+// =============================================================================
+let screenshotManager = null;
+let eyedropperManager = null;
+
 // Initialize the search/filter manager
 async function initializeSearchFilterManager() {
     if (!searchFilterManager && window.SearchFilterManager) {
@@ -2540,6 +2588,49 @@ function handleSortChange() {
         searchFilterManager.setFilter('sortBy', sortBy);
         searchFilterManager.setFilter('sortOrder', sortOrder);
         updateCustomizationList();
+    }
+}
+
+// Initialize screenshot manager
+async function initializeScreenshotManager() {
+    if (!screenshotManager && window.ScreenshotManager) {
+        screenshotManager = new window.ScreenshotManager();
+        await screenshotManager.initialize();
+    }
+}
+
+// Initialize eyedropper manager
+async function initializeEyedropperManager() {
+    if (!eyedropperManager && window.EyedropperManager) {
+        eyedropperManager = new window.EyedropperManager();
+        await eyedropperManager.initialize();
+        
+        // Set up callbacks
+        eyedropperManager.setCallbacks({
+            onColorPicked: (color) => {
+                console.log('Color picked:', color);
+                // You can update UI or insert color into active field
+                if (elements.baseCss && elements.baseCss.matches(':focus')) {
+                    const currentValue = elements.baseCss.value;
+                    elements.baseCss.value = currentValue + `\ncolor: ${color.hex};`;
+                }
+            },
+            onElementSelected: (elementInfo) => {
+                console.log('Element selected:', elementInfo);
+                // Update selector field
+                if (elements.cssSelector) {
+                    elements.cssSelector.value = elementInfo.selector;
+                }
+                // Auto-fill some basic styles
+                if (elements.baseCss) {
+                    const styles = eyedropperManager.getElementStyles(elementInfo.element);
+                    const cssText = Object.entries(styles)
+                        .map(([prop, value]) => `${prop}: ${value};`)
+                        .join('\n');
+                    elements.baseCss.value = cssText;
+                }
+            }
+        });
     }
 }
 
@@ -2906,6 +2997,279 @@ function createUserCustomizationItem(customization) {
     `;
     
     return item;
+}
+
+// =============================================================================
+// SCREENSHOT FUNCTIONALITY
+// =============================================================================
+
+// Show screenshot options
+function showScreenshotOptions() {
+    if (elements.screenshotOptions) {
+        elements.screenshotOptions.style.display = 'block';
+        elements.exportOptions.style.display = 'none';
+        elements.importOptions.style.display = 'none';
+    }
+}
+
+// Hide screenshot options
+function hideScreenshotOptions() {
+    if (elements.screenshotOptions) {
+        elements.screenshotOptions.style.display = 'none';
+    }
+}
+
+// Toggle element selector group
+function toggleElementSelectorGroup(show) {
+    if (elements.elementSelectorGroup) {
+        elements.elementSelectorGroup.style.display = show ? 'block' : 'none';
+    }
+}
+
+// Handle screenshot capture
+async function handleScreenshot() {
+    try {
+        await initializeScreenshotManager();
+        
+        const screenshotType = document.querySelector('input[name="screenshot-type"]:checked')?.value || 'visible';
+        const enableMarkup = elements.screenshotMarkup?.checked ?? true;
+        
+        showScreenshotStatus('Capturing screenshot...', 'info');
+        
+        let screenshot;
+        
+        // Capture based on selected type
+        switch (screenshotType) {
+            case 'visible':
+                screenshot = await screenshotManager.captureVisibleTab();
+                break;
+            case 'fullpage':
+                // Need to inject into active tab
+                screenshot = await captureFullPageFromTab();
+                break;
+            case 'element':
+                const selector = elements.screenshotSelector?.value;
+                if (!selector) {
+                    throw new Error('Please specify an element selector');
+                }
+                screenshot = await captureElementFromTab(selector);
+                break;
+            default:
+                throw new Error('Invalid screenshot type');
+        }
+        
+        if (screenshot) {
+            showScreenshotStatus('Screenshot captured successfully!', 'success');
+            
+            if (enableMarkup) {
+                // Initialize markup interface (this would be in content script)
+                showScreenshotStatus('Opening markup editor...', 'info');
+                // For now, just download the screenshot
+                screenshotManager.downloadImage(screenshot.dataUrl, `screenshot-${screenshot.timestamp}.png`);
+            } else {
+                // Direct download
+                screenshotManager.downloadImage(screenshot.dataUrl, `screenshot-${screenshot.timestamp}.png`);
+            }
+            
+            // Save to history
+            await screenshotManager.saveToHistory(screenshot);
+            
+            hideScreenshotOptions();
+        }
+        
+    } catch (error) {
+        console.error('Screenshot error:', error);
+        showScreenshotStatus('Failed to capture screenshot: ' + error.message, 'error');
+    }
+}
+
+// Capture full page from active tab
+async function captureFullPageFromTab() {
+    try {
+        // Get active tab
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const activeTab = tabs[0];
+        
+        // Inject screenshot manager into the page
+        await chrome.scripting.executeScript({
+            target: { tabId: activeTab.id },
+            files: ['src/scripts/screenshot-manager.js']
+        });
+        
+        // Execute capture
+        const result = await chrome.scripting.executeScript({
+            target: { tabId: activeTab.id },
+            func: async () => {
+                const manager = new ScreenshotManager();
+                await manager.initialize();
+                return await manager.captureFullPage();
+            }
+        });
+        
+        return result[0].result;
+        
+    } catch (error) {
+        console.error('Full page capture error:', error);
+        throw error;
+    }
+}
+
+// Capture element from active tab
+async function captureElementFromTab(selector) {
+    try {
+        // Get active tab
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const activeTab = tabs[0];
+        
+        // Inject screenshot manager into the page
+        await chrome.scripting.executeScript({
+            target: { tabId: activeTab.id },
+            files: ['src/scripts/screenshot-manager.js']
+        });
+        
+        // Execute capture
+        const result = await chrome.scripting.executeScript({
+            target: { tabId: activeTab.id },
+            func: async (sel) => {
+                const manager = new ScreenshotManager();
+                await manager.initialize();
+                return await manager.captureElement(sel);
+            },
+            args: [selector]
+        });
+        
+        return result[0].result;
+        
+    } catch (error) {
+        console.error('Element capture error:', error);
+        throw error;
+    }
+}
+
+// Show screenshot status
+function showScreenshotStatus(message, type = 'info') {
+    if (elements.screenshotStatusDiv) {
+        elements.screenshotStatusDiv.className = 'import-status ' + type;
+        elements.screenshotStatusDiv.textContent = message;
+        elements.screenshotStatusDiv.style.display = 'block';
+    }
+}
+
+// =============================================================================
+// EYEDROPPER FUNCTIONALITY
+// =============================================================================
+
+// Handle eyedropper activation
+async function handleEyedropper() {
+    try {
+        await initializeEyedropperManager();
+        
+        if (!eyedropperManager.isSupported()) {
+            showNotification('EyeDropper API not supported in this browser', 'error');
+            return;
+        }
+        
+        // Show options menu
+        const action = await showEyedropperOptions();
+        
+        if (action === 'color') {
+            // Pick color
+            const color = await eyedropperManager.pickColor();
+            if (color) {
+                showNotification(`Color picked: ${color.hex}`, 'success');
+            }
+        } else if (action === 'element') {
+            // Pick element - need to inject into active tab
+            await pickElementFromTab();
+        }
+        
+    } catch (error) {
+        console.error('Eyedropper error:', error);
+        showNotification('Eyedropper failed: ' + error.message, 'error');
+    }
+}
+
+// Show eyedropper options
+function showEyedropperOptions() {
+    return new Promise((resolve) => {
+        // Create simple option dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'eyedropper-options-dialog';
+        dialog.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        `;
+        
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 16px 0; font-size: 16px;">Choose Action</h3>
+            <button id="pick-color-btn" class="btn btn-primary" style="margin-right: 8px;">Pick Color</button>
+            <button id="pick-element-btn" class="btn btn-secondary" style="margin-right: 8px;">Select Element</button>
+            <button id="cancel-eyedropper-btn" class="btn btn-secondary">Cancel</button>
+        `;
+        
+        document.body.appendChild(dialog);
+        
+        dialog.querySelector('#pick-color-btn').onclick = () => {
+            dialog.remove();
+            resolve('color');
+        };
+        
+        dialog.querySelector('#pick-element-btn').onclick = () => {
+            dialog.remove();
+            resolve('element');
+        };
+        
+        dialog.querySelector('#cancel-eyedropper-btn').onclick = () => {
+            dialog.remove();
+            resolve(null);
+        };
+    });
+}
+
+// Pick element from active tab
+async function pickElementFromTab() {
+    try {
+        // Get active tab
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        const activeTab = tabs[0];
+        
+        // Inject eyedropper manager into the page
+        await chrome.scripting.executeScript({
+            target: { tabId: activeTab.id },
+            files: ['src/scripts/eyedropper-manager.js']
+        });
+        
+        // Execute element picker
+        await chrome.scripting.executeScript({
+            target: { tabId: activeTab.id },
+            func: async () => {
+                const manager = new EyedropperManager();
+                await manager.initialize();
+                
+                return new Promise((resolve) => {
+                    manager.setCallbacks({
+                        onElementSelected: (elementInfo) => {
+                            resolve(elementInfo);
+                        }
+                    });
+                    
+                    manager.enableElementInspector();
+                });
+            }
+        });
+        
+    } catch (error) {
+        console.error('Element picker error:', error);
+        throw error;
+    }
 }
 
 // =============================================================================

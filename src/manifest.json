@@ -9,7 +9,9 @@
     "tabs",
     "alarms",
     "contextMenus",
-    "notifications"
+    "notifications",
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
     "https://*.dynamics.com/*",
