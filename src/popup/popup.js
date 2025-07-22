@@ -14,6 +14,129 @@ let msalAvailable = false;
 /* global PublicClientApplication */
 
 // =============================================================================
+// PERMISSIONS CONFIGURATION
+// =============================================================================
+const PERMISSIONS = {
+    // Rule Management
+    CREATE_RULE: ['System Administrator', 'System Customizer'],
+    EDIT_RULE: ['System Administrator', 'System Customizer'],
+    DELETE_RULE: ['System Administrator', 'System Customizer'],
+    PREVIEW_RULE: ['System Administrator', 'System Customizer'],
+    
+    // Synchronization
+    SYNC_DATAVERSE: ['System Administrator', 'System Customizer'],
+    SYNC_SHAREPOINT: ['System Administrator', 'System Customizer'],
+    RESOLVE_CONFLICTS: ['System Administrator', 'System Customizer'],
+    
+    // Settings Management
+    MANAGE_SETTINGS: ['System Administrator', 'System Customizer'],
+    MANAGE_LICENSE: ['System Administrator', 'System Customizer'],
+    CONFIGURE_SYNC: ['System Administrator', 'System Customizer'],
+    
+    // Data Operations
+    EXPORT_DATA: ['System Administrator', 'System Customizer'],
+    IMPORT_DATA: ['System Administrator', 'System Customizer'],
+    EXPORT_SETTINGS: ['System Administrator', 'System Customizer'],
+    IMPORT_SETTINGS: ['System Administrator', 'System Customizer']
+};
+
+// Permission check function
+async function checkPermission(action) {
+    try {
+        const { userRole } = await chrome.storage.local.get('userRole');
+        
+        if (!userRole || !userRole.roles) {
+            console.warn('No user role information available');
+            return false;
+        }
+        
+        const allowedRoles = PERMISSIONS[action] || [];
+        const hasPermission = allowedRoles.some(role => userRole.roles.includes(role));
+        
+        console.log(`Permission check for ${action}: ${hasPermission ? 'GRANTED' : 'DENIED'}`);
+        
+        // Audit log
+        await logPermissionCheck(action, hasPermission, userRole);
+        
+        return hasPermission;
+    } catch (error) {
+        console.error('Permission check error:', error);
+        return false;
+    }
+}
+
+// Get all permissions for current user
+async function getUserPermissions() {
+    try {
+        const { userRole } = await chrome.storage.local.get('userRole');
+        
+        if (!userRole || !userRole.roles) {
+            return {};
+        }
+        
+        const permissions = {};
+        
+        for (const [action, allowedRoles] of Object.entries(PERMISSIONS)) {
+            permissions[action] = allowedRoles.some(role => userRole.roles.includes(role));
+        }
+        
+        return permissions;
+    } catch (error) {
+        console.error('Error getting user permissions:', error);
+        return {};
+    }
+}
+
+// Audit logging for permission checks
+async function logPermissionCheck(action, granted, userRole) {
+    try {
+        const { auditLog = [] } = await chrome.storage.local.get('auditLog');
+        
+        const logEntry = {
+            timestamp: Date.now(),
+            action,
+            granted,
+            userId: userRole.userId || 'unknown',
+            roles: userRole.roles || [],
+            url: currentTab?.url || 'unknown'
+        };
+        
+        // Keep only last 1000 entries
+        const updatedLog = [...auditLog, logEntry].slice(-1000);
+        
+        await chrome.storage.local.set({ auditLog: updatedLog });
+    } catch (error) {
+        console.error('Audit logging error:', error);
+    }
+}
+
+// Log admin actions
+async function logAdminAction(action, details = {}) {
+    try {
+        const { userRole } = await chrome.storage.local.get('userRole');
+        const { adminActionLog = [] } = await chrome.storage.local.get('adminActionLog');
+        
+        const logEntry = {
+            timestamp: Date.now(),
+            action,
+            details,
+            userId: userRole?.userId || 'unknown',
+            roles: userRole?.roles || [],
+            success: true
+        };
+        
+        // Keep only last 500 admin actions
+        const updatedLog = [...adminActionLog, logEntry].slice(-500);
+        
+        await chrome.storage.local.set({ adminActionLog: updatedLog });
+        
+        console.log('Admin action logged:', action);
+    } catch (error) {
+        console.error('Admin action logging error:', error);
+    }
+}
+
+// =============================================================================
 // DOM ELEMENTS - Combined from both versions
 // =============================================================================
 const elements = {
@@ -46,6 +169,7 @@ const elements = {
     cssSelector: document.getElementById('css-selector'),
     baseCss: document.getElementById('base-css'),
     testSelector: document.getElementById('test-selector'),
+    previewRule: document.getElementById('preview-rule'),
     customizationList: document.getElementById('customization-list'),
     emptyState: document.getElementById('empty-state'),
     ruleCount: document.getElementById('rule-count'),
@@ -76,6 +200,7 @@ let isAdmin = false;
 let customizations = [];
 let editingCustomization = null;
 let msalInstance = null;
+let customizationActionsPermissions = null;
 
 // NEW: Pseudo-class support
 const PSEUDO_CLASSES = [
@@ -528,32 +653,101 @@ async function initializePopup() {
 // =============================================================================
 // ADMIN VIEW INITIALIZATION - Enhanced with pseudo-class support
 // =============================================================================
-function initializeAdminView() {
+async function initializeAdminView() {
     isAdmin = true;
 
-    // Initialize form elements if using legacy mode
-    initializeFormElements();
+    try {
+        // Get user permissions
+        const permissions = await getUserPermissions();
+        
+        // Update UI based on permissions
+        updateUIBasedOnPermissions(permissions);
+        
+        // Initialize form elements if using legacy mode
+        initializeFormElements();
 
-    // Setup event listeners based on available elements
-    if (elements.form) {
-        // Legacy mode - setup unified field listeners
-        setupLegacyEventListeners();
+        // Setup event listeners based on available elements
+        if (elements.form) {
+            // Legacy mode - setup unified field listeners
+            setupLegacyEventListeners();
+        }
+
+        // NEW: Setup enhanced event listeners
+        setupEnhancedEventListeners();
+
+        // NEW: Initialize pseudo-class tabs
+        initializePseudoClassTabs();
+
+        // Load existing customizations
+        loadCustomizations(true);
+
+        // Setup logout functionality
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', handleLogout);
+        }
+    } catch (error) {
+        console.error('Error initializing admin view:', error);
+        showNotification('Failed to initialize: ' + error.message, 'error');
     }
+}
 
-    // NEW: Setup enhanced event listeners
-    setupEnhancedEventListeners();
-
-    // NEW: Initialize pseudo-class tabs
-    initializePseudoClassTabs();
-
-    // Load existing customizations
-    loadCustomizations(true);
-
-    // Setup logout functionality
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', handleLogout);
+// Update UI elements based on user permissions
+function updateUIBasedOnPermissions(permissions) {
+    // Toggle create form button
+    if (elements.toggleCreateForm) {
+        elements.toggleCreateForm.style.display = permissions.CREATE_RULE ? 'flex' : 'none';
     }
+    
+    // Preview button
+    if (elements.previewRule) {
+        elements.previewRule.style.display = permissions.PREVIEW_RULE ? 'inline-block' : 'none';
+    }
+    
+    // Save button in forms
+    const saveButtons = document.querySelectorAll('button[type="submit"]');
+    saveButtons.forEach(btn => {
+        if (!permissions.CREATE_RULE && !permissions.EDIT_RULE) {
+            btn.style.display = 'none';
+        }
+    });
+    
+    // Sync buttons
+    if (elements.syncButton) {
+        elements.syncButton.style.display = 
+            (permissions.SYNC_DATAVERSE || permissions.SYNC_SHAREPOINT) ? 'inline-block' : 'none';
+    }
+    
+    const syncRulesBtn = document.getElementById('sync-rules');
+    if (syncRulesBtn) {
+        syncRulesBtn.style.display = 
+            (permissions.SYNC_DATAVERSE || permissions.SYNC_SHAREPOINT) ? 'inline-block' : 'none';
+    }
+    
+    // Export/Import buttons
+    const exportBtns = document.querySelectorAll('[data-action="export"], #export-customizations');
+    exportBtns.forEach(btn => {
+        btn.style.display = permissions.EXPORT_DATA ? 'inline-block' : 'none';
+    });
+    
+    const importBtns = document.querySelectorAll('[data-action="import"], [for="import-file"]');
+    importBtns.forEach(btn => {
+        btn.style.display = permissions.IMPORT_DATA ? 'inline-block' : 'none';
+    });
+    
+    // Settings button
+    if (elements.openSettingsBtn) {
+        elements.openSettingsBtn.style.display = permissions.MANAGE_SETTINGS ? 'inline-block' : 'none';
+    }
+    
+    // Update customization actions based on permissions
+    updateCustomizationActionsVisibility(permissions);
+}
+
+// Update visibility of action buttons in customization list
+function updateCustomizationActionsVisibility(permissions) {
+    // This will be called after customizations are loaded
+    customizationActionsPermissions = permissions;
 }
 
 // Initialize form DOM elements (legacy support)
@@ -721,6 +915,10 @@ function setupEnhancedEventListeners() {
     if (elements.testSelector) {
         elements.testSelector.addEventListener('click', testCurrentSelector);
     }
+    
+    if (elements.previewRule) {
+        elements.previewRule.addEventListener('click', previewCurrentRule);
+    }
 
     // Pseudo-class tab events
     elements.pseudoTabs?.forEach(tab => {
@@ -795,6 +993,81 @@ async function saveCustomization(customization) {
 
         // Update content script
         await notifyContentScript('updateCustomization', customization);
+
+        // Preview functionality
+async function previewCurrentRule() {
+    try {
+        // Check permission
+        if (!await checkPermission('PREVIEW_RULE')) {
+            showNotification('You do not have permission to preview rules', 'error');
+            return;
+        }
+        
+        const formData = collectFormData();
+        
+        if (!formData.selector) {
+            showNotification('Please enter a CSS selector', 'error');
+            return;
+        }
+        
+        // Build customization object for preview
+        const previewCustomization = {
+            id: 'preview-' + Date.now(),
+            name: formData.name || 'Preview Rule',
+            selector: formData.selector,
+            css: formData.baseCss || '',
+            pseudoClasses: formData.pseudoClasses || {},
+            enabled: true,
+            isPreview: true,
+            createdAt: Date.now()
+        };
+        
+        // Send preview to content script
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) {
+            showNotification('Cannot access current tab', 'error');
+            return;
+        }
+        
+        const response = await chrome.tabs.sendMessage(tab.id, {
+            action: 'previewCustomization',
+            customization: previewCustomization
+        });
+        
+        if (response && response.success) {
+            showNotification('Preview active', 'success');
+            
+            // Change preview button to "Stop Preview"
+            elements.previewRule.textContent = 'Stop Preview';
+            elements.previewRule.classList.add('btn-warning');
+            
+            // Add click handler to stop preview
+            const stopPreview = async () => {
+                await chrome.tabs.sendMessage(tab.id, {
+                    action: 'stopPreview',
+                    customizationId: previewCustomization.id
+                });
+                
+                elements.previewRule.textContent = 'Preview';
+                elements.previewRule.classList.remove('btn-warning');
+                elements.previewRule.removeEventListener('click', stopPreview);
+                elements.previewRule.addEventListener('click', previewCurrentRule);
+                
+                showNotification('Preview stopped', 'info');
+            };
+            
+            elements.previewRule.removeEventListener('click', previewCurrentRule);
+            elements.previewRule.addEventListener('click', stopPreview);
+            
+        } else {
+            showNotification('Failed to start preview', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Preview error:', error);
+        showNotification('Preview failed: ' + error.message, 'error');
+    }
+}
 
         // Sync with SharePoint if admin
         if (isAdmin) {
@@ -881,6 +1154,15 @@ async function handleSubmitCustomization(event) {
     event.preventDefault();
 
     try {
+        // Check permission
+        const isEditing = !!editingCustomization;
+        const requiredPermission = isEditing ? 'EDIT_RULE' : 'CREATE_RULE';
+        
+        if (!await checkPermission(requiredPermission)) {
+            showNotification(`You do not have permission to ${isEditing ? 'edit' : 'create'} rules`, 'error');
+            return;
+        }
+        
         const formData = collectFormData();
 
         if (!validateFormData(formData)) {
@@ -888,6 +1170,14 @@ async function handleSubmitCustomization(event) {
         }
 
         await saveCustomization(formData);
+        
+        // Log admin action
+        await logAdminAction(requiredPermission, {
+            ruleName: formData.name,
+            selector: formData.selector,
+            hasPseudoClasses: Object.keys(formData.pseudoClasses || {}).length > 0,
+            isEdit: isEditing
+        });
 
         toggleCreateForm();
         await loadCustomizations(true);
@@ -1029,6 +1319,27 @@ function createCustomizationItem(customization) {
         Object.keys(customization.pseudoClasses).map(pseudo =>
             `<span class="state-badge ${pseudo}">:${pseudo}</span>`
         ).join('') : '';
+    
+    // Get permissions or use default if not available
+    const permissions = customizationActionsPermissions || {};
+    
+    // Build action buttons based on permissions
+    const editButton = permissions.EDIT_RULE !== false ? `
+        <button class="btn-icon edit" title="Edit" data-action="edit" data-id="${customization.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+        </button>` : '';
+    
+    const deleteButton = permissions.DELETE_RULE !== false ? `
+        <button class="btn-icon delete" title="Delete" data-action="delete" data-id="${customization.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M3 6h18"/>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+        </button>` : '';
 
     item.innerHTML = `
         <div class="customization-header">
@@ -1047,19 +1358,8 @@ function createCustomizationItem(customization) {
                         <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"/>
                     </svg>
                 </button>
-                <button class="btn-icon edit" title="Edit" data-action="edit" data-id="${customization.id}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                </button>
-                <button class="btn-icon delete" title="Delete" data-action="delete" data-id="${customization.id}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M3 6h18"/>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                    </svg>
-                </button>
+                ${editButton}
+                ${deleteButton}
                 <label class="toggle-switch">
                     <input type="checkbox" ${customization.enabled ? 'checked' : ''} data-action="toggle" data-id="${customization.id}">
                     <span class="toggle-slider"></span>
@@ -1091,6 +1391,10 @@ async function handleCustomizationAction(event) {
                 await testCustomization(customization);
                 break;
             case 'edit':
+                if (!await checkPermission('EDIT_RULE')) {
+                    showNotification('You do not have permission to edit rules', 'error');
+                    return;
+                }
                 editCustomization(customization);
                 break;
             case 'delete':
@@ -1175,6 +1479,12 @@ function editCustomization(customization) {
 }
 
 async function deleteCustomization(customization) {
+    // Check permission first
+    if (!await checkPermission('DELETE_RULE')) {
+        showNotification('You do not have permission to delete rules', 'error');
+        return;
+    }
+    
     const confirmed = await showConfirmDialog(`Are you sure you want to delete "${customization.name}"?`);
     if (!confirmed) return;
 
@@ -1184,6 +1494,13 @@ async function deleteCustomization(customization) {
             .filter(c => c.id !== customization.id);
 
         await chrome.storage.local.set({ customizations: updatedCustomizations });
+        
+        // Log admin action
+        await logAdminAction('DELETE_RULE', {
+            ruleName: customization.name,
+            selector: customization.selector,
+            ruleId: customization.id
+        });
 
         await notifyContentScript('removeCustomization', { id: customization.id });
 
@@ -1229,6 +1546,12 @@ function updateRuleCount() {
 // =============================================================================
 async function handleSyncWithSharePoint() {
     try {
+        // Check permission
+        if (!await checkPermission('SYNC_SHAREPOINT')) {
+            showNotification('You do not have permission to sync with SharePoint', 'error');
+            return;
+        }
+        
         const authToken = await getAuthToken();
         const result = await chrome.runtime.sendMessage({
             action: "syncToSharePoint",
@@ -1236,6 +1559,12 @@ async function handleSyncWithSharePoint() {
         });
 
         if (result.success) {
+            // Log admin action
+            await logAdminAction('SYNC_SHAREPOINT', {
+                customizationCount: result.count || 0,
+                syncType: 'upload'
+            });
+            
             showNotification('Successfully synced to SharePoint!', 'success');
             await loadCustomizations(true);
         } else {

@@ -111,6 +111,17 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
 }
 
+.btn-warning {
+  background-color: #ff6b6b;
+  color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #ff5252;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
 .btn-full {
   width: 100%;
 }

@@ -274,6 +274,24 @@
                         supportedPseudoClasses: SUPPORTED_PSEUDO_CLASSES
                     });
                     break;
+                
+                case 'previewCustomization':
+                    try {
+                        const previewResult = applyPreviewCustomization(request.customization);
+                        sendResponse({ success: true, ...previewResult });
+                    } catch (error) {
+                        sendResponse({ success: false, message: error.message });
+                    }
+                    break;
+                
+                case 'stopPreview':
+                    try {
+                        removePreviewCustomization(request.customizationId);
+                        sendResponse({ success: true });
+                    } catch (error) {
+                        sendResponse({ success: false, message: error.message });
+                    }
+                    break;
 
                 default:
                     sendResponse({ success: false, message: 'Unknown action' });
@@ -651,6 +669,105 @@
 
         return properties;
     }
+
+    // ==================== PREVIEW FUNCTIONALITY ====================
+    const previewStyles = new Map(); // Track preview styles separately
+    
+    function applyPreviewCustomization(customization) {
+        try {
+            const elements = document.querySelectorAll(customization.selector);
+            
+            if (elements.length === 0) {
+                return { 
+                    elementsFound: 0, 
+                    message: 'No elements found matching the selector' 
+                };
+            }
+            
+            // Create preview style element with visual indicator
+            const styleId = STYLE_PREFIX + customization.id;
+            const existingStyle = document.getElementById(styleId);
+            
+            if (existingStyle) {
+                existingStyle.remove();
+            }
+            
+            const styleEl = document.createElement('style');
+            styleEl.id = styleId;
+            styleEl.dataset.preview = 'true';
+            
+            // Build CSS with preview indicator
+            let cssContent = '';
+            
+            // Add base styles with preview indicator (dashed outline)
+            if (customization.css) {
+                cssContent += `${customization.selector} {
+                    ${customization.css}
+                    outline: 2px dashed #ff6b6b !important;
+                    outline-offset: 2px !important;
+                }\n`;
+            }
+            
+            // Add pseudo-class styles
+            if (customization.pseudoClasses) {
+                Object.entries(customization.pseudoClasses).forEach(([pseudoClass, config]) => {
+                    if (config.enabled && config.css) {
+                        cssContent += `${customization.selector}:${pseudoClass} {
+                            ${config.css}
+                        }\n`;
+                    }
+                });
+            }
+            
+            styleEl.textContent = cssContent;
+            document.head.appendChild(styleEl);
+            
+            // Track preview style
+            previewStyles.set(customization.id, {
+                styleElement: styleEl,
+                customization: customization,
+                timestamp: Date.now()
+            });
+            
+            // Add visual feedback to matched elements
+            elements.forEach(el => {
+                el.dataset.domInjectorPreview = customization.id;
+            });
+            
+            return {
+                elementsFound: elements.length,
+                message: `Preview applied to ${elements.length} element(s)`
+            };
+            
+        } catch (error) {
+            console.error('Preview application error:', error);
+            throw error;
+        }
+    }
+    
+    function removePreviewCustomization(customizationId) {
+        const preview = previewStyles.get(customizationId);
+        
+        if (preview) {
+            // Remove style element
+            if (preview.styleElement && preview.styleElement.parentNode) {
+                preview.styleElement.remove();
+            }
+            
+            // Remove data attributes from elements
+            const elements = document.querySelectorAll(`[data-dom-injector-preview="${customizationId}"]`);
+            elements.forEach(el => {
+                delete el.dataset.domInjectorPreview;
+            });
+            
+            // Remove from tracking
+            previewStyles.delete(customizationId);
+            
+            console.log(`Preview removed: ${customizationId}`);
+        }
+    }
+    
+    // Note: Previews persist until manually stopped by the user
 
     // ==================== DEBUGGING AND UTILITIES ====================
     // Expose utilities for testing/debugging

@@ -390,6 +390,118 @@ label.btn {
     to { transform: rotate(360deg); }
 }
 
+/* License status styling */
+.license-status {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    margin-top: 15px;
+    border: 1px solid var(--border-color);
+}
+
+.license-status p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.license-status span {
+    font-weight: 500;
+}
+
+#license-status-text {
+    color: var(--text-secondary);
+}
+
+#license-status-text:has-text("Valid") {
+    color: var(--success-color);
+}
+
+#license-status-text:has-text("Invalid") {
+    color: var(--error-color);
+}
+
+/* Number input styling */
+input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    transition: border-color 0.2s;
+    background-color: white;
+}
+
+input[type="number"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Section headers with icons */
+.config-section h3 {
+    margin: 25px 0 15px 0;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Advanced settings sections */
+.config-section:has(#debug-mode) {
+    background: linear-gradient(to bottom, #ffffff, #f9fafb);
+}
+
+/* Import/Export sections */
+.config-section:has(#export-settings) h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.config-section:has(#export-settings) h3::before {
+    content: "💾";
+    font-size: 18px;
+}
+
+/* Email input styling */
+input[type="email"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    transition: border-color 0.2s;
+    background-color: white;
+}
+
+input[type="email"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Button hover effects */
+#check-license:hover {
+    background-color: var(--primary-dark);
+}
+
+#export-settings:hover,
+#import-settings-file:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Loading state for check license button */
+#check-license:disabled {
+    cursor: wait;
+}
+
+/* Support type field groups */
+#support-email-group,
+#support-chat-group,
+#support-webform-group {
+    transition: opacity 0.3s, max-height 0.3s;
+}
+
 /* Responsive design */
 @media (max-width: 600px) {
     .container {

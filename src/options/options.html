@@ -136,9 +136,138 @@
                 </div>
             </section>
 
+            <!-- License Configuration -->
+            <section class="config-section">
+                <h2>License Configuration</h2>
+                <div class="form-group">
+                    <label for="license-endpoint">License Server URL</label>
+                    <input type="url" id="license-endpoint" placeholder="https://license.yourdomain.com/api">
+                    <small>Endpoint for license validation (leave empty for development mode)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="license-check-interval">License Check Interval (hours)</label>
+                    <input type="number" id="license-check-interval" min="1" max="168" value="24">
+                    <small>How often to validate the license (1-168 hours)</small>
+                </div>
+                
+                <div class="license-status">
+                    <p>License Status: <span id="license-status-text">Not Configured</span></p>
+                    <p>Last Check: <span id="license-last-check">Never</span></p>
+                    <button id="check-license" class="btn btn-secondary btn-sm">Check Now</button>
+                </div>
+            </section>
+
+            <!-- Support Configuration -->
+            <section class="config-section">
+                <h2>Support Configuration</h2>
+                <div class="form-group">
+                    <label for="support-type">Support Contact Type</label>
+                    <select id="support-type" class="form-select">
+                        <option value="email">Email</option>
+                        <option value="chat">Chat Widget</option>
+                        <option value="webform">Web Form</option>
+                        <option value="none">Disabled</option>
+                    </select>
+                    <small>How users can contact support</small>
+                </div>
+                
+                <div class="form-group" id="support-email-group">
+                    <label for="support-email">Support Email</label>
+                    <input type="email" id="support-email" placeholder="support@yourdomain.com">
+                </div>
+                
+                <div class="form-group" id="support-chat-group" style="display: none;">
+                    <label for="support-chat-url">Chat Widget URL</label>
+                    <input type="url" id="support-chat-url" placeholder="https://chat.yourdomain.com/widget">
+                </div>
+                
+                <div class="form-group" id="support-webform-group" style="display: none;">
+                    <label for="support-webform-url">Support Form URL</label>
+                    <input type="url" id="support-webform-url" placeholder="https://support.yourdomain.com/form">
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="allow-screenshots">
+                        Allow users to attach screenshots
+                    </label>
+                    <small>Enable screenshot capture for support requests</small>
+                </div>
+            </section>
+
+            <!-- Advanced Settings -->
+            <section class="config-section">
+                <h2>Advanced Settings</h2>
+                
+                <!-- Performance Settings -->
+                <h3>Performance</h3>
+                <div class="form-group">
+                    <label for="max-customizations">Maximum Customizations</label>
+                    <input type="number" id="max-customizations" min="10" max="1000" value="100">
+                    <small>Maximum number of customizations allowed (10-1000)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="injection-delay">Injection Delay (ms)</label>
+                    <input type="number" id="injection-delay" min="0" max="5000" value="100">
+                    <small>Delay before injecting styles (0-5000ms)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="enable-caching">
+                        Enable customization caching
+                    </label>
+                    <small>Cache processed customizations for better performance</small>
+                </div>
+                
+                <!-- Debug Settings -->
+                <h3>Debugging</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="debug-mode">
+                        Enable debug mode
+                    </label>
+                    <small>Show detailed console logs and debugging information</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="show-injection-badge">
+                        Show injection badge
+                    </label>
+                    <small>Display a badge when customizations are active</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="log-level">Console Log Level</label>
+                    <select id="log-level" class="form-select">
+                        <option value="error">Errors Only</option>
+                        <option value="warn">Warnings & Errors</option>
+                        <option value="info" selected>Info, Warnings & Errors</option>
+                        <option value="debug">All (Debug)</option>
+                    </select>
+                </div>
+            </section>
+
             <!-- Import/Export -->
             <section class="config-section">
-                <h2>Import/Export Customizations</h2>
+                <h2>Import/Export</h2>
+                
+                <!-- Settings Export/Import -->
+                <h3>Settings Backup</h3>
+                <div class="button-group">
+                    <button id="export-settings" class="btn btn-secondary">Export Settings</button>
+                    <label for="import-settings-file" class="btn btn-secondary">
+                        Import Settings
+                        <input type="file" id="import-settings-file" accept=".json" style="display: none;">
+                    </label>
+                </div>
+                <small>Backup or restore all extension settings</small>
+                
+                <!-- Customizations Export/Import -->
+                <h3>Customizations</h3>
                 <div class="button-group">
                     <button id="export-customizations" class="btn">Export Customizations</button>
                     <label for="import-file" class="btn">
@@ -146,6 +275,7 @@
                         <input type="file" id="import-file" accept=".json" style="display: none;">
                     </label>
                 </div>
+                <small>Export or import style customization rules</small>
             </section>
 
             <!-- Save Button -->

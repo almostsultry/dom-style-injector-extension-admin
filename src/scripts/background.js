@@ -88,6 +88,9 @@ async function handleMessage(request) {
 
     case 'refresh-token':
       return await handleRefreshToken();
+    
+    case 'checkLicense':
+      return await handleCheckLicense(request);
 
     default:
       console.log('Unknown message action:', request.action);
@@ -109,6 +112,12 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         break;
       case 'cleanup-storage':
         await cleanupStorage();
+        break;
+      case 'license-check':
+        const { licenseEndpoint } = await chrome.storage.sync.get('licenseEndpoint');
+        if (licenseEndpoint) {
+          await handleCheckLicense({ endpoint: licenseEndpoint });
+        }
         break;
       default:
         console.log('Unknown alarm:', alarm.name);
@@ -177,6 +186,24 @@ async function handleExtensionUpdate(previousVersion) {
 
 async function initializeExtension() {
   console.log('Initializing extension');
+  
+  try {
+    // Check if sync on startup is enabled
+    const { syncOnStartup, licenseEndpoint } = await chrome.storage.sync.get(['syncOnStartup', 'licenseEndpoint']);
+    
+    if (syncOnStartup) {
+      console.log('Sync on startup enabled - performing sync');
+      await performPeriodicSync();
+    }
+    
+    // Check license on startup if configured
+    if (licenseEndpoint) {
+      console.log('Checking license on startup');
+      await handleCheckLicense({ endpoint: licenseEndpoint });
+    }
+  } catch (error) {
+    console.error('Initialization sync error:', error);
+  }
 
   if (isInitialized) {
     console.log('Extension already initialized');
@@ -1793,5 +1820,91 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 initializeExtension().catch(error => {
   console.error('Failed to initialize extension:', error);
 });
+
+// License checking functionality
+async function handleCheckLicense(request) {
+  try {
+    const { endpoint } = request;
+    
+    if (!endpoint) {
+      return { success: false, error: 'License endpoint not configured' };
+    }
+    
+    // Get tenant ID from D365 URL
+    const { d365OrgUrl } = await chrome.storage.sync.get('d365OrgUrl');
+    if (!d365OrgUrl) {
+      return { success: false, error: 'D365 Organization URL not configured' };
+    }
+    
+    // Extract tenant from D365 URL
+    const urlMatch = d365OrgUrl.match(/https:\/\/([\w-]+)\./);
+    const tenantId = urlMatch ? urlMatch[1] : null;
+    
+    // Get current user info
+    const { userRole } = await chrome.storage.local.get('userRole');
+    const userId = userRole?.userId || 'unknown';
+    
+    // Prepare license check request
+    const licenseRequest = {
+      tenantId,
+      userId,
+      extensionId: chrome.runtime.id,
+      extensionVersion: chrome.runtime.getManifest().version,
+      timestamp: Date.now()
+    };
+    
+    // Call license endpoint
+    const response = await fetch(endpoint + '/validate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(licenseRequest)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`License server error: ${response.status}`);
+    }
+    
+    const licenseData = await response.json();
+    
+    // Validate license response
+    const isValid = licenseData.valid === true && 
+                   licenseData.tenantId === tenantId &&
+                   new Date(licenseData.expirationDate) > new Date();
+    
+    // Store license status
+    await chrome.storage.local.set({
+      licenseStatus: {
+        valid: isValid,
+        expirationDate: licenseData.expirationDate,
+        features: licenseData.features || [],
+        lastCheck: Date.now()
+      }
+    });
+    
+    // Schedule next check based on license interval
+    const { licenseCheckInterval } = await chrome.storage.sync.get('licenseCheckInterval');
+    const checkInterval = (licenseCheckInterval || 24) * 60; // Convert hours to minutes
+    
+    chrome.alarms.create('license-check', {
+      delayInMinutes: checkInterval,
+      periodInMinutes: checkInterval
+    });
+    
+    return {
+      success: true,
+      valid: isValid,
+      details: {
+        expirationDate: licenseData.expirationDate,
+        features: licenseData.features
+      }
+    };
+    
+  } catch (error) {
+    console.error('License check error:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 console.log('DOM Style Injector: Background service worker setup completed');
