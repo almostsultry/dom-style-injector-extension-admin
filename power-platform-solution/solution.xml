@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ImportExportXml version="9.2.24023.198" SolutionPackageVersion="9.2" languagecode="1033" generatedBy="CrmLive" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <SolutionManifest>
+    <UniqueName>DOMStyleInjectorExtension</UniqueName>
+    <LocalizedNames>
+      <LocalizedName description="DOM Style Injector Extension" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="Managed solution for D365 Model App Customizer Extension with Dataverse tables and security roles" languagecode="1033" />
+    </Descriptions>
+    <Version>1.0.0.0</Version>
+    <Managed>2</Managed>
+    <Publisher>
+      <UniqueName>domstyleinjector</UniqueName>
+      <LocalizedNames>
+        <LocalizedName description="DOM Style Injector Publisher" languagecode="1033" />
+      </LocalizedNames>
+      <Descriptions>
+        <Description description="Publisher for DOM Style Injector Extension" languagecode="1033" />
+      </Descriptions>
+      <EMailAddress>support@domstyleinjector.com</EMailAddress>
+      <SupportingWebsiteUrl>https://domstyleinjector.com</SupportingWebsiteUrl>
+      <CustomizationPrefix>cr123</CustomizationPrefix>
+      <CustomizationOptionValuePrefix>10000</CustomizationOptionValuePrefix>
+      <Addresses>
+        <Address>
+          <AddressNumber>1</AddressNumber>
+          <AddressTypeCode>1</AddressTypeCode>
+          <City>YourCity</City>
+          <StateOrProvince>YourState</StateOrProvince>
+          <Country>YourCountry</Country>
+          <PostalCode>00000</PostalCode>
+        </Address>
+      </Addresses>
+    </Publisher>
+    <RootComponents>
+      <RootComponent type="1" schemaName="cr123_domstylecustomizations" behavior="0" />
+      <RootComponent type="1383" schemaName="cr123_domstyleadmin" behavior="0" />
+      <RootComponent type="1383" schemaName="cr123_domstyleuser" behavior="0" />
+    </RootComponents>
+    <MissingDependencies />
+  </SolutionManifest>
+</ImportExportXml>

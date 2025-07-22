@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SecurityRole>
+  <Name>DOM Style Administrator</Name>
+  <RoleId>{00000000-0000-0000-0001-000000000001}</RoleId>
+  <IsCustomizable>1</IsCustomizable>
+  <IntroducedVersion>1.0.0.0</IntroducedVersion>
+  <LocalizedNames>
+    <LocalizedName languagecode="1033" description="DOM Style Administrator" />
+  </LocalizedNames>
+  <Descriptions>
+    <Description languagecode="1033" description="Full access to manage DOM Style Injector customizations" />
+  </Descriptions>
+  <Privileges>
+    <RolePrivilege name="cr123_domstylecustomizations">
+      <PrivilegeId>{00000000-0000-0000-0001-000000000002}</PrivilegeId>
+      <BusinessUnitId>{00000000-0000-0000-0000-000000000000}</BusinessUnitId>
+      <PrivilegeDepthMask>8</PrivilegeDepthMask>
+    </RolePrivilege>
+    <RoleEntityPrivilege entityname="cr123_domstylecustomizations">
+      <EntityName>cr123_domstylecustomizations</EntityName>
+      <Privileges>
+        <Privilege name="prvCreatecr123_domstylecustomizations" level="Organization" />
+        <Privilege name="prvReadcr123_domstylecustomizations" level="Organization" />
+        <Privilege name="prvWritecr123_domstylecustomizations" level="Organization" />
+        <Privilege name="prvDeletecr123_domstylecustomizations" level="Organization" />
+        <Privilege name="prvAppendcr123_domstylecustomizations" level="Organization" />
+        <Privilege name="prvAppendTocr123_domstylecustomizations" level="Organization" />
+        <Privilege name="prvSharecr123_domstylecustomizations" level="Organization" />
+        <Privilege name="prvAssigncr123_domstylecustomizations" level="Organization" />
+      </Privileges>
+    </RoleEntityPrivilege>
+    <!-- System Permissions -->
+    <RolePrivilege name="prvReadEntity">
+      <PrivilegeDepthMask>8</PrivilegeDepthMask>
+    </RolePrivilege>
+    <RolePrivilege name="prvReadAttribute">
+      <PrivilegeDepthMask>8</PrivilegeDepthMask>
+    </RolePrivilege>
+    <RolePrivilege name="prvReadRelationship">
+      <PrivilegeDepthMask>8</PrivilegeDepthMask>
+    </RolePrivilege>
+    <RolePrivilege name="prvReadOptionSet">
+      <PrivilegeDepthMask>8</PrivilegeDepthMask>
+    </RolePrivilege>
+    <!-- Organization Access -->
+    <RolePrivilege name="prvReadOrganization">
+      <PrivilegeDepthMask>8</PrivilegeDepthMask>
+    </RolePrivilege>
+    <RolePrivilege name="prvReadBusinessUnit">
+      <PrivilegeDepthMask>8</PrivilegeDepthMask>
+    </RolePrivilege>
+    <RolePrivilege name="prvReadTeam">
+      <PrivilegeDepthMask>8</PrivilegeDepthMask>
+    </RolePrivilege>
+    <RolePrivilege name="prvReadQueue">
+      <PrivilegeDepthMask>8</PrivilegeDepthMask>
+    </RolePrivilege>
+  </Privileges>
+</SecurityRole>

@@ -1,0 +1,494 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Entity xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name LocalizedName="DOM Style Customizations" OriginalName="DOM Style Customizations">cr123_domstylecustomizations</Name>
+  <EntityInfo>
+    <entity Name="cr123_domstylecustomizations">
+      <LocalizedNames>
+        <LocalizedName languagecode="1033" description="DOM Style Customizations" />
+      </LocalizedNames>
+      <LocalizedCollectionNames>
+        <LocalizedCollectionName languagecode="1033" description="DOM Style Customizations" />
+      </LocalizedCollectionNames>
+      <Descriptions>
+        <Description languagecode="1033" description="Stores CSS and JavaScript customizations for D365 DOM manipulation" />
+      </Descriptions>
+      <attributes>
+        <attribute PhysicalName="cr123_domstylecustomizationsid">
+          <Type>primarykey</Type>
+          <Name>cr123_domstylecustomizationsid</Name>
+          <LogicalName>cr123_domstylecustomizationsid</LogicalName>
+          <RequiredLevel>systemrequired</RequiredLevel>
+          <DisplayMask>ValidForAdvancedFind|RequiredForForm</DisplayMask>
+          <ImeMode>disabled</ImeMode>
+          <ValidForUpdateApi>0</ValidForUpdateApi>
+          <displaynames>
+            <displayname languagecode="1033" description="DOM Style Customization" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Unique identifier for DOM Style Customization" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_customizationid">
+          <Type>nvarchar</Type>
+          <Name>cr123_customizationid</Name>
+          <LogicalName>cr123_customizationid</LogicalName>
+          <RequiredLevel>required</RequiredLevel>
+          <MaxLength>100</MaxLength>
+          <Format>text</Format>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="Customization ID" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Unique identifier for the customization" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_name">
+          <Type>nvarchar</Type>
+          <Name>cr123_name</Name>
+          <LogicalName>cr123_name</LogicalName>
+          <RequiredLevel>required</RequiredLevel>
+          <MaxLength>200</MaxLength>
+          <Format>text</Format>
+          <ImeMode>auto</ImeMode>
+          <IsPrimaryName>1</IsPrimaryName>
+          <displaynames>
+            <displayname languagecode="1033" description="Name" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Name of the customization" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_selector">
+          <Type>nvarchar</Type>
+          <Name>cr123_selector</Name>
+          <LogicalName>cr123_selector</LogicalName>
+          <RequiredLevel>required</RequiredLevel>
+          <MaxLength>500</MaxLength>
+          <Format>text</Format>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="CSS Selector" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="CSS selector or DOM element identifier" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_css">
+          <Type>memo</Type>
+          <Name>cr123_css</Name>
+          <LogicalName>cr123_css</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>10000</MaxLength>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="CSS Rules" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="CSS rules to apply" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_javascript">
+          <Type>memo</Type>
+          <Name>cr123_javascript</Name>
+          <LogicalName>cr123_javascript</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>10000</MaxLength>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="JavaScript Code" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="JavaScript code to execute" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_enabled">
+          <Type>bit</Type>
+          <Name>cr123_enabled</Name>
+          <LogicalName>cr123_enabled</LogicalName>
+          <RequiredLevel>required</RequiredLevel>
+          <DefaultValue>1</DefaultValue>
+          <displaynames>
+            <displayname languagecode="1033" description="Enabled" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Whether the customization is active" />
+          </Descriptions>
+          <OptionSetName>cr123_yesno</OptionSetName>
+        </attribute>
+        <attribute PhysicalName="cr123_description">
+          <Type>memo</Type>
+          <Name>cr123_description</Name>
+          <LogicalName>cr123_description</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>2000</MaxLength>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="Description" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Description of the customization" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_targeturl">
+          <Type>nvarchar</Type>
+          <Name>cr123_targeturl</Name>
+          <LogicalName>cr123_targeturl</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>500</MaxLength>
+          <Format>url</Format>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="Target URL" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="URL pattern for where to apply" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_priority">
+          <Type>int</Type>
+          <Name>cr123_priority</Name>
+          <LogicalName>cr123_priority</LogicalName>
+          <RequiredLevel>required</RequiredLevel>
+          <MinValue>1</MinValue>
+          <MaxValue>100</MaxValue>
+          <DefaultValue>50</DefaultValue>
+          <displaynames>
+            <displayname languagecode="1033" description="Priority" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Execution priority (1-100)" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_category">
+          <Type>nvarchar</Type>
+          <Name>cr123_category</Name>
+          <LogicalName>cr123_category</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>100</MaxLength>
+          <Format>text</Format>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="Category" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Category for organization" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_pseudoclasses">
+          <Type>memo</Type>
+          <Name>cr123_pseudoclasses</Name>
+          <LogicalName>cr123_pseudoclasses</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>4000</MaxLength>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="Pseudo Classes" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="JSON string of pseudo-class definitions" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_externalid">
+          <Type>nvarchar</Type>
+          <Name>cr123_externalid</Name>
+          <LogicalName>cr123_externalid</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>100</MaxLength>
+          <Format>text</Format>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="External ID" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="External ID for third-party integration" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_tenant">
+          <Type>nvarchar</Type>
+          <Name>cr123_tenant</Name>
+          <LogicalName>cr123_tenant</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>100</MaxLength>
+          <Format>text</Format>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="Tenant ID" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Tenant identifier" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_environment">
+          <Type>nvarchar</Type>
+          <Name>cr123_environment</Name>
+          <LogicalName>cr123_environment</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>100</MaxLength>
+          <Format>text</Format>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="Environment" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Environment name" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_lastsyncdate">
+          <Type>datetime</Type>
+          <Name>cr123_lastsyncdate</Name>
+          <LogicalName>cr123_lastsyncdate</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <Format>dateandtime</Format>
+          <ImeMode>disabled</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="Last Sync Date" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="Last synchronization timestamp" />
+          </Descriptions>
+        </attribute>
+        <attribute PhysicalName="cr123_modifiedby">
+          <Type>nvarchar</Type>
+          <Name>cr123_modifiedby</Name>
+          <LogicalName>cr123_modifiedby</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <MaxLength>200</MaxLength>
+          <Format>text</Format>
+          <ImeMode>auto</ImeMode>
+          <displaynames>
+            <displayname languagecode="1033" description="Modified By User" />
+          </displaynames>
+          <Descriptions>
+            <Description languagecode="1033" description="User who last modified" />
+          </Descriptions>
+        </attribute>
+      </attributes>
+      <IsCustomEntity>1</IsCustomEntity>
+      <IsActivity>0</IsActivity>
+      <OwnershipTypeMask>OrganizationOwned</OwnershipTypeMask>
+      <ActivityTypeMask>0</ActivityTypeMask>
+      <IsAvailableOffline>1</IsAvailableOffline>
+      <IsDocumentManagementEnabled>0</IsDocumentManagementEnabled>
+      <IsOneNoteIntegrationEnabled>0</IsOneNoteIntegrationEnabled>
+      <IsKnowledgeManagementEnabled>0</IsKnowledgeManagementEnabled>
+      <IsSLAEnabled>0</IsSLAEnabled>
+      <IsBPFEntity>0</IsBPFEntity>
+      <IsAuditEnabled>1</IsAuditEnabled>
+      <IsQuickCreateEnabled>1</IsQuickCreateEnabled>
+      <IsConnectionsEnabled>0</IsConnectionsEnabled>
+      <IsDuplicateDetectionEnabled>1</IsDuplicateDetectionEnabled>
+      <IsMailMergeEnabled>0</IsMailMergeEnabled>
+      <IsVisibleInMobile>1</IsVisibleInMobile>
+      <IsVisibleInMobileClient>1</IsVisibleInMobileClient>
+      <IsReadOnlyInMobileClient>0</IsReadOnlyInMobileClient>
+      <IsOfflineInMobileClient>1</IsOfflineInMobileClient>
+      <HasActivities>0</HasActivities>
+      <HasNotes>1</HasNotes>
+      <PrimaryNameAttribute>cr123_name</PrimaryNameAttribute>
+      <PrimaryIdAttribute>cr123_domstylecustomizationsid</PrimaryIdAttribute>
+      <ReportViewName>Filteredcr123_domstylecustomizations</ReportViewName>
+      <IsCustomizable>1</IsCustomizable>
+      <CanCreateAttributes>1</CanCreateAttributes>
+      <CanCreateForms>1</CanCreateForms>
+      <CanCreateViews>1</CanCreateViews>
+      <CanCreateCharts>1</CanCreateCharts>
+      <CanModifyAdditionalSettings>1</CanModifyAdditionalSettings>
+      <CanChangeTrackingBeEnabled>1</CanChangeTrackingBeEnabled>
+    </entity>
+  </EntityInfo>
+  <FormXml>
+    <forms type="main">
+      <systemform>
+        <formid>{00000000-0000-0000-0000-000000000001}</formid>
+        <IntroducedVersion>1.0.0.0</IntroducedVersion>
+        <FormPresentation>1</FormPresentation>
+        <FormActivationState>1</FormActivationState>
+        <form>
+          <tabs>
+            <tab name="general" id="{00000000-0000-0000-0000-000000000001}" IsUserDefined="1">
+              <labels>
+                <label languagecode="1033" description="General" />
+              </labels>
+              <sections>
+                <section name="general_section" id="{00000000-0000-0000-0000-000000000002}" IsUserDefined="1" columns="2">
+                  <labels>
+                    <label languagecode="1033" description="General Information" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{00000000-0000-0000-0000-000000000003}">
+                        <control id="cr123_name" classid="{4273EDBD-AC1D-40D3-9FB2-095C621B552D}" datafieldname="cr123_name" />
+                      </cell>
+                      <cell id="{00000000-0000-0000-0000-000000000004}">
+                        <control id="cr123_enabled" classid="{B0C6723A-8503-4FD7-BB28-C8A06AC933C2}" datafieldname="cr123_enabled" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{00000000-0000-0000-0000-000000000005}" colspan="2">
+                        <control id="cr123_description" classid="{E0DECE4B-6FC8-4A8F-A065-082708572369}" datafieldname="cr123_description" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+                <section name="targeting_section" id="{00000000-0000-0000-0000-000000000006}" IsUserDefined="1" columns="1">
+                  <labels>
+                    <label languagecode="1033" description="Targeting" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{00000000-0000-0000-0000-000000000007}">
+                        <control id="cr123_selector" classid="{4273EDBD-AC1D-40D3-9FB2-095C621B552D}" datafieldname="cr123_selector" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{00000000-0000-0000-0000-000000000008}">
+                        <control id="cr123_targeturl" classid="{4273EDBD-AC1D-40D3-9FB2-095C621B552D}" datafieldname="cr123_targeturl" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{00000000-0000-0000-0000-000000000009}">
+                        <control id="cr123_priority" classid="{C3EFE0C3-0EC6-42BE-8349-CBD9079DFD8E}" datafieldname="cr123_priority" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </tab>
+            <tab name="customization" id="{00000000-0000-0000-0000-000000000010}" IsUserDefined="1">
+              <labels>
+                <label languagecode="1033" description="Customization" />
+              </labels>
+              <sections>
+                <section name="css_section" id="{00000000-0000-0000-0000-000000000011}" IsUserDefined="1" columns="1">
+                  <labels>
+                    <label languagecode="1033" description="CSS Rules" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{00000000-0000-0000-0000-000000000012}">
+                        <control id="cr123_css" classid="{E0DECE4B-6FC8-4A8F-A065-082708572369}" datafieldname="cr123_css" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+                <section name="javascript_section" id="{00000000-0000-0000-0000-000000000013}" IsUserDefined="1" columns="1">
+                  <labels>
+                    <label languagecode="1033" description="JavaScript Code" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{00000000-0000-0000-0000-000000000014}">
+                        <control id="cr123_javascript" classid="{E0DECE4B-6FC8-4A8F-A065-082708572369}" datafieldname="cr123_javascript" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+                <section name="pseudoclass_section" id="{00000000-0000-0000-0000-000000000015}" IsUserDefined="1" columns="1">
+                  <labels>
+                    <label languagecode="1033" description="Pseudo Classes" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{00000000-0000-0000-0000-000000000016}">
+                        <control id="cr123_pseudoclasses" classid="{E0DECE4B-6FC8-4A8F-A065-082708572369}" datafieldname="cr123_pseudoclasses" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </tab>
+          </tabs>
+        </form>
+        <LocalizedNames>
+          <LocalizedName languagecode="1033" description="DOM Style Customization" />
+        </LocalizedNames>
+      </systemform>
+    </forms>
+  </FormXml>
+  <SavedQueries>
+    <savedquery>
+      <savedqueryid>{00000000-0000-0000-0000-000000000001}</savedqueryid>
+      <name>Active DOM Style Customizations</name>
+      <isdefault>1</isdefault>
+      <returnedtypecode>10001</returnedtypecode>
+      <isquickfindquery>0</isquickfindquery>
+      <isprivate>0</isprivate>
+      <fetchxml>
+        <![CDATA[<fetch version="1.0" mapping="logical">
+          <entity name="cr123_domstylecustomizations">
+            <attribute name="cr123_name" />
+            <attribute name="cr123_selector" />
+            <attribute name="cr123_targeturl" />
+            <attribute name="cr123_priority" />
+            <attribute name="cr123_enabled" />
+            <attribute name="cr123_category" />
+            <attribute name="createdon" />
+            <order attribute="cr123_priority" descending="false" />
+            <filter type="and">
+              <condition attribute="cr123_enabled" operator="eq" value="1" />
+              <condition attribute="statecode" operator="eq" value="0" />
+            </filter>
+          </entity>
+        </fetch>]]>
+      </fetchxml>
+      <layoutxml>
+        <grid name="resultset" object="10001" jump="cr123_name" select="1" icon="1" preview="1">
+          <row name="result" id="cr123_domstylecustomizationsid">
+            <cell name="cr123_name" width="200" />
+            <cell name="cr123_selector" width="150" />
+            <cell name="cr123_targeturl" width="150" />
+            <cell name="cr123_priority" width="80" />
+            <cell name="cr123_enabled" width="80" />
+            <cell name="cr123_category" width="100" />
+            <cell name="createdon" width="120" />
+          </row>
+        </grid>
+      </layoutxml>
+      <LocalizedNames>
+        <LocalizedName languagecode="1033" description="Active DOM Style Customizations" />
+      </LocalizedNames>
+    </savedquery>
+    <savedquery>
+      <savedqueryid>{00000000-0000-0000-0000-000000000002}</savedqueryid>
+      <name>All DOM Style Customizations</name>
+      <isdefault>0</isdefault>
+      <returnedtypecode>10001</returnedtypecode>
+      <isquickfindquery>0</isquickfindquery>
+      <isprivate>0</isprivate>
+      <fetchxml>
+        <![CDATA[<fetch version="1.0" mapping="logical">
+          <entity name="cr123_domstylecustomizations">
+            <attribute name="cr123_name" />
+            <attribute name="cr123_selector" />
+            <attribute name="cr123_targeturl" />
+            <attribute name="cr123_priority" />
+            <attribute name="cr123_enabled" />
+            <attribute name="cr123_category" />
+            <attribute name="modifiedon" />
+            <order attribute="cr123_name" descending="false" />
+            <filter type="and">
+              <condition attribute="statecode" operator="eq" value="0" />
+            </filter>
+          </entity>
+        </fetch>]]>
+      </fetchxml>
+      <layoutxml>
+        <grid name="resultset" object="10001" jump="cr123_name" select="1" icon="1" preview="1">
+          <row name="result" id="cr123_domstylecustomizationsid">
+            <cell name="cr123_name" width="200" />
+            <cell name="cr123_selector" width="150" />
+            <cell name="cr123_targeturl" width="150" />
+            <cell name="cr123_priority" width="80" />
+            <cell name="cr123_enabled" width="80" />
+            <cell name="cr123_category" width="100" />
+            <cell name="modifiedon" width="120" />
+          </row>
+        </grid>
+      </layoutxml>
+      <LocalizedNames>
+        <LocalizedName languagecode="1033" description="All DOM Style Customizations" />
+      </LocalizedNames>
+    </savedquery>
+  </SavedQueries>
+</Entity>
