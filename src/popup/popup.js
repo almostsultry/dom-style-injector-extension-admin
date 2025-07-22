@@ -678,6 +678,9 @@ async function initializePopup() {
         // Initialize screenshot and eyedropper managers
         await initializeScreenshotManager();
         await initializeEyedropperManager();
+        
+        // Initialize branding
+        await initializeBranding();
         // Check license first
         const licenseCheck = await chrome.runtime.sendMessage({ action: 'checkLicense' });
         
@@ -3317,3 +3320,25 @@ window.popupDebug = {
     msalAvailable,
     msalInstance
 };
+
+// =============================================================================
+// BRANDING FUNCTIONALITY
+// =============================================================================
+let brandingManager = null;
+
+async function initializeBranding() {
+    try {
+        // Check if BrandingManager is available
+        if (typeof BrandingManager === 'undefined') {
+            console.warn('BrandingManager not found. Branding features will be disabled.');
+            return;
+        }
+        
+        brandingManager = new BrandingManager();
+        await brandingManager.initialize();
+        
+        console.log('Branding initialized in popup');
+    } catch (error) {
+        console.error('Failed to initialize branding:', error);
+    }
+}

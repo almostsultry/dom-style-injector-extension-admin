@@ -902,3 +902,356 @@ async function importSettings(e) {
 
 // Auto-refresh cache status
 setInterval(updateCacheStatus, 5000);
+
+// Branding functionality
+let brandingManager = null;
+
+// Branding elements
+const logoUploadInput = document.getElementById('logo-upload');
+const logoPreview = document.getElementById('logo-preview');
+const removeLogoBtn = document.getElementById('remove-logo');
+const iconUploadInput = document.getElementById('icon-upload');
+const iconPreviews = document.querySelectorAll('.icon-preview');
+const removeIconBtn = document.getElementById('remove-icon');
+const primaryColorInput = document.getElementById('primary-color');
+const primaryColorText = document.getElementById('primary-color-text');
+const secondaryColorInput = document.getElementById('secondary-color');
+const secondaryColorText = document.getElementById('secondary-color-text');
+const accentColorInput = document.getElementById('accent-color');
+const accentColorText = document.getElementById('accent-color-text');
+const themeSelect = document.getElementById('theme-select');
+const themePreview = document.getElementById('theme-preview');
+const companyNameInput = document.getElementById('company-name');
+const brandingSupportEmailInput = document.querySelector('#branding-section #support-email');
+const brandingSupportUrlInput = document.getElementById('support-url');
+const customCssTextarea = document.getElementById('custom-css');
+const previewBrandingBtn = document.getElementById('preview-branding');
+const resetBrandingBtn = document.getElementById('reset-branding');
+const exportBrandingBtn = document.getElementById('export-branding');
+const importBrandingInput = document.getElementById('import-branding');
+
+// Initialize branding manager
+async function initializeBrandingManager() {
+    try {
+        // Check if BrandingManager is available
+        if (typeof BrandingManager === 'undefined') {
+            console.error('BrandingManager not found. Make sure branding-manager.js is loaded.');
+            return;
+        }
+        
+        brandingManager = new BrandingManager();
+        await brandingManager.initialize();
+        
+        // Load current branding into UI
+        loadBrandingSettings();
+        
+        // Setup branding event listeners
+        setupBrandingEventListeners();
+        
+        console.log('Branding manager initialized');
+    } catch (error) {
+        console.error('Failed to initialize branding manager:', error);
+    }
+}
+
+// Load branding settings into UI
+function loadBrandingSettings() {
+    if (!brandingManager) return;
+    
+    const branding = brandingManager.getCurrentBranding();
+    
+    // Logo
+    if (branding.logoUrl) {
+        updateLogoPreview(branding.logoUrl);
+        removeLogoBtn.style.display = 'inline-block';
+    }
+    
+    // Icon
+    if (branding.iconUrl) {
+        updateIconPreviews(branding.iconUrl);
+        removeIconBtn.style.display = 'inline-block';
+    }
+    
+    // Colors
+    primaryColorInput.value = branding.primaryColor;
+    primaryColorText.value = branding.primaryColor;
+    secondaryColorInput.value = branding.secondaryColor;
+    secondaryColorText.value = branding.secondaryColor;
+    accentColorInput.value = branding.accentColor;
+    accentColorText.value = branding.accentColor;
+    
+    // Theme
+    themeSelect.value = branding.theme;
+    updateThemePreview(branding.theme);
+    
+    // Company info
+    companyNameInput.value = branding.companyName || '';
+    if (brandingSupportEmailInput) brandingSupportEmailInput.value = branding.supportEmail || '';
+    if (brandingSupportUrlInput) brandingSupportUrlInput.value = branding.supportUrl || '';
+    
+    // Custom CSS
+    customCssTextarea.value = branding.customCSS || '';
+}
+
+// Setup branding event listeners
+function setupBrandingEventListeners() {
+    // Logo upload
+    logoUploadInput.addEventListener('change', handleLogoUpload);
+    removeLogoBtn.addEventListener('click', removeLogo);
+    
+    // Icon upload
+    iconUploadInput.addEventListener('change', handleIconUpload);
+    removeIconBtn.addEventListener('click', removeIcon);
+    
+    // Color inputs sync
+    primaryColorInput.addEventListener('input', (e) => {
+        primaryColorText.value = e.target.value;
+        saveBrandingDebounced();
+    });
+    primaryColorText.addEventListener('input', (e) => {
+        if (isValidColor(e.target.value)) {
+            primaryColorInput.value = e.target.value;
+            saveBrandingDebounced();
+        }
+    });
+    
+    secondaryColorInput.addEventListener('input', (e) => {
+        secondaryColorText.value = e.target.value;
+        saveBrandingDebounced();
+    });
+    secondaryColorText.addEventListener('input', (e) => {
+        if (isValidColor(e.target.value)) {
+            secondaryColorInput.value = e.target.value;
+            saveBrandingDebounced();
+        }
+    });
+    
+    accentColorInput.addEventListener('input', (e) => {
+        accentColorText.value = e.target.value;
+        saveBrandingDebounced();
+    });
+    accentColorText.addEventListener('input', (e) => {
+        if (isValidColor(e.target.value)) {
+            accentColorInput.value = e.target.value;
+            saveBrandingDebounced();
+        }
+    });
+    
+    // Theme selection
+    themeSelect.addEventListener('change', (e) => {
+        updateThemePreview(e.target.value);
+        saveBrandingDebounced();
+    });
+    
+    // Company info
+    companyNameInput.addEventListener('input', saveBrandingDebounced);
+    if (brandingSupportEmailInput) brandingSupportEmailInput.addEventListener('input', saveBrandingDebounced);
+    if (brandingSupportUrlInput) brandingSupportUrlInput.addEventListener('input', saveBrandingDebounced);
+    customCssTextarea.addEventListener('input', saveBrandingDebounced);
+    
+    // Action buttons
+    previewBrandingBtn.addEventListener('click', previewBranding);
+    resetBrandingBtn.addEventListener('click', resetBranding);
+    exportBrandingBtn.addEventListener('click', exportBranding);
+    importBrandingInput.addEventListener('change', importBranding);
+}
+
+// Handle logo upload
+async function handleLogoUpload(e) {
+    const file = e.target.files[0];
+    if (!file || !brandingManager) return;
+    
+    try {
+        showStatus('Uploading logo...', 'info');
+        const logoUrl = await brandingManager.uploadLogo(file);
+        updateLogoPreview(logoUrl);
+        removeLogoBtn.style.display = 'inline-block';
+        await saveBranding();
+        showStatus('Logo uploaded successfully', 'success');
+    } catch (error) {
+        console.error('Logo upload error:', error);
+        showStatus('Failed to upload logo: ' + error.message, 'error');
+    }
+    
+    // Clear input
+    e.target.value = '';
+}
+
+// Update logo preview
+function updateLogoPreview(logoUrl) {
+    logoPreview.innerHTML = `<img src="${logoUrl}" alt="Company Logo">`;
+}
+
+// Remove logo
+async function removeLogo() {
+    logoPreview.innerHTML = '<span>No logo uploaded</span>';
+    removeLogoBtn.style.display = 'none';
+    await saveBranding();
+}
+
+// Handle icon upload
+async function handleIconUpload(e) {
+    const file = e.target.files[0];
+    if (!file || !brandingManager) return;
+    
+    try {
+        showStatus('Processing icon...', 'info');
+        const icons = await brandingManager.uploadIcon(file);
+        
+        // Use the largest icon as the main icon URL
+        const iconUrl = icons[128] || icons[48] || icons[16];
+        updateIconPreviews(iconUrl);
+        removeIconBtn.style.display = 'inline-block';
+        
+        await saveBranding();
+        showStatus('Icon uploaded successfully', 'success');
+    } catch (error) {
+        console.error('Icon upload error:', error);
+        showStatus('Failed to upload icon: ' + error.message, 'error');
+    }
+    
+    // Clear input
+    e.target.value = '';
+}
+
+// Update icon previews
+function updateIconPreviews(iconUrl) {
+    iconPreviews.forEach(preview => {
+        preview.innerHTML = `<img src="${iconUrl}" alt="Icon">`;
+    });
+}
+
+// Remove icon
+async function removeIcon() {
+    iconPreviews.forEach(preview => {
+        const size = preview.dataset.size;
+        preview.innerHTML = size;
+    });
+    removeIconBtn.style.display = 'none';
+    await saveBranding();
+}
+
+// Update theme preview
+function updateThemePreview(theme) {
+    if (!brandingManager) return;
+    
+    themePreview.innerHTML = '';
+    const preview = brandingManager.generateThemePreview(theme);
+    themePreview.appendChild(preview);
+}
+
+// Save branding (debounced)
+let saveBrandingTimeout;
+function saveBrandingDebounced() {
+    clearTimeout(saveBrandingTimeout);
+    saveBrandingTimeout = setTimeout(saveBranding, 500);
+}
+
+// Save branding
+async function saveBranding() {
+    if (!brandingManager) return;
+    
+    try {
+        const branding = {
+            logoUrl: logoPreview.querySelector('img')?.src || null,
+            iconUrl: iconPreviews[0].querySelector('img')?.src || null,
+            primaryColor: primaryColorInput.value,
+            secondaryColor: secondaryColorInput.value,
+            accentColor: accentColorInput.value,
+            theme: themeSelect.value,
+            companyName: companyNameInput.value,
+            supportEmail: brandingSupportEmailInput?.value || '',
+            supportUrl: brandingSupportUrlInput?.value || '',
+            customCSS: customCssTextarea.value
+        };
+        
+        const result = await brandingManager.saveBranding(branding);
+        
+        if (!result.success) {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        console.error('Save branding error:', error);
+        showStatus('Failed to save branding: ' + error.message, 'error');
+    }
+}
+
+// Preview branding
+function previewBranding() {
+    if (!brandingManager) return;
+    
+    // Apply branding temporarily
+    brandingManager.applyBranding();
+    showStatus('Branding preview applied', 'info');
+    
+    // Revert after 5 seconds
+    setTimeout(() => {
+        showStatus('Preview ended', 'info');
+    }, 5000);
+}
+
+// Reset branding
+async function resetBranding() {
+    if (!brandingManager) return;
+    
+    const confirmed = await showConfirmDialog(
+        'Reset Branding?',
+        'This will reset all branding to default values. Are you sure?'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        await brandingManager.resetBranding();
+        loadBrandingSettings();
+        showStatus('Branding reset to default', 'success');
+    } catch (error) {
+        console.error('Reset branding error:', error);
+        showStatus('Failed to reset branding', 'error');
+    }
+}
+
+// Export branding
+function exportBranding() {
+    if (!brandingManager) return;
+    
+    brandingManager.exportBranding();
+    showStatus('Branding configuration exported', 'success');
+}
+
+// Import branding
+async function importBranding(e) {
+    const file = e.target.files[0];
+    if (!file || !brandingManager) return;
+    
+    try {
+        const text = await file.text();
+        const result = await brandingManager.importBranding(text);
+        
+        if (result.success) {
+            loadBrandingSettings();
+            showStatus(result.message, 'success');
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        console.error('Import branding error:', error);
+        showStatus('Failed to import branding: ' + error.message, 'error');
+    } finally {
+        e.target.value = '';
+    }
+}
+
+// Validate color
+function isValidColor(color) {
+    const s = new Option().style;
+    s.color = color;
+    return s.color !== '';
+}
+
+// Initialize branding when DOM is loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeBrandingManager);
+} else {
+    initializeBrandingManager();
+}

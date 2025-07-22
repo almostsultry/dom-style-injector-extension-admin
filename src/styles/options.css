@@ -502,6 +502,155 @@ input[type="email"]:focus {
     transition: opacity 0.3s, max-height 0.3s;
 }
 
+/* Branding Section */
+#branding-section {
+    background: linear-gradient(to bottom, #ffffff, #f7f9fc);
+    border: 1px solid #e1e4e8;
+}
+
+.upload-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.image-preview {
+    width: 200px;
+    height: 60px;
+    border: 2px dashed #e9ecef;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    color: #6c757d;
+    font-size: 14px;
+    overflow: hidden;
+}
+
+.image-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.icon-preview-group {
+    display: flex;
+    gap: 10px;
+}
+
+.icon-preview {
+    width: 48px;
+    height: 48px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    color: #6c757d;
+    font-size: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.icon-preview[data-size="16"] {
+    width: 32px;
+    height: 32px;
+}
+
+.icon-preview[data-size="128"] {
+    width: 64px;
+    height: 64px;
+}
+
+.icon-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.color-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.color-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.color-input-group input[type="color"] {
+    width: 50px;
+    height: 40px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.color-text {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.theme-preview-container {
+    margin-top: 15px;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.theme-preview {
+    /* Styles generated dynamically by BrandingManager */
+}
+
+.section-description {
+    color: #6c757d;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    transition: border-color 0.2s;
+    background-color: white;
+    resize: vertical;
+}
+
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    transition: border-color 0.2s;
+    background-color: white;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 /* Responsive design */
 @media (max-width: 600px) {
     .container {
@@ -527,5 +676,14 @@ input[type="email"]:focus {
     .save-section {
         flex-direction: column;
         gap: 15px;
+    }
+    
+    .upload-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .color-inputs {
+        grid-template-columns: 1fr;
     }
 }

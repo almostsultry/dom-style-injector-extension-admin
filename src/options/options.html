@@ -278,6 +278,128 @@
                 <small>Export or import style customization rules</small>
             </section>
 
+            <!-- Branding Section -->
+            <section class="config-section" id="branding-section">
+                <h2>Custom Branding</h2>
+                <p class="section-description">Customize the extension's appearance with your organization's branding</p>
+                
+                <!-- Logo & Icon -->
+                <h3>Logo & Icon</h3>
+                <div class="form-group">
+                    <label for="logo-upload">Company Logo</label>
+                    <div class="upload-container">
+                        <div id="logo-preview" class="image-preview">
+                            <span>No logo uploaded</span>
+                        </div>
+                        <input type="file" id="logo-upload" accept="image/*" style="display: none;">
+                        <button class="btn btn-secondary" onclick="document.getElementById('logo-upload').click()">
+                            Upload Logo
+                        </button>
+                        <button id="remove-logo" class="btn btn-secondary" style="display: none;">Remove</button>
+                    </div>
+                    <small>Recommended size: 200x60 pixels (max 500KB)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="icon-upload">Extension Icon</label>
+                    <div class="upload-container">
+                        <div id="icon-preview" class="icon-preview-group">
+                            <div class="icon-preview" data-size="16">16</div>
+                            <div class="icon-preview" data-size="48">48</div>
+                            <div class="icon-preview" data-size="128">128</div>
+                        </div>
+                        <input type="file" id="icon-upload" accept="image/*" style="display: none;">
+                        <button class="btn btn-secondary" onclick="document.getElementById('icon-upload').click()">
+                            Upload Icon
+                        </button>
+                        <button id="remove-icon" class="btn btn-secondary" style="display: none;">Remove</button>
+                    </div>
+                    <small>Square image recommended (max 100KB)</small>
+                </div>
+
+                <!-- Colors -->
+                <h3>Color Scheme</h3>
+                <div class="color-inputs">
+                    <div class="form-group">
+                        <label for="primary-color">Primary Color</label>
+                        <div class="color-input-group">
+                            <input type="color" id="primary-color" value="#007acc">
+                            <input type="text" id="primary-color-text" value="#007acc" class="color-text">
+                        </div>
+                        <small>Main brand color for headers and buttons</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="secondary-color">Secondary Color</label>
+                        <div class="color-input-group">
+                            <input type="color" id="secondary-color" value="#0056b3">
+                            <input type="text" id="secondary-color-text" value="#0056b3" class="color-text">
+                        </div>
+                        <small>Hover states and secondary elements</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="accent-color">Accent Color</label>
+                        <div class="color-input-group">
+                            <input type="color" id="accent-color" value="#28a745">
+                            <input type="text" id="accent-color-text" value="#28a745" class="color-text">
+                        </div>
+                        <small>Success states and highlights</small>
+                    </div>
+                </div>
+
+                <!-- Theme -->
+                <h3>Theme</h3>
+                <div class="form-group">
+                    <label for="theme-select">Color Theme</label>
+                    <select id="theme-select" class="form-select">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="highContrast">High Contrast</option>
+                    </select>
+                    <div id="theme-preview" class="theme-preview-container"></div>
+                </div>
+
+                <!-- Company Info -->
+                <h3>Company Information</h3>
+                <div class="form-group">
+                    <label for="company-name">Company Name</label>
+                    <input type="text" id="company-name" class="form-input" placeholder="Your Company Name">
+                    <small>Displayed in user-facing elements</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="support-email">Support Email</label>
+                    <input type="email" id="support-email" class="form-input" placeholder="support@company.com">
+                    <small>Contact email for user support</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="support-url">Support URL</label>
+                    <input type="url" id="support-url" class="form-input" placeholder="https://support.company.com">
+                    <small>Link to your support portal</small>
+                </div>
+
+                <!-- Custom CSS -->
+                <h3>Custom CSS</h3>
+                <div class="form-group">
+                    <label for="custom-css">Additional CSS</label>
+                    <textarea id="custom-css" class="form-textarea" rows="6" placeholder="/* Add custom CSS here */"></textarea>
+                    <small>Advanced: Add custom CSS to further customize the appearance</small>
+                </div>
+
+                <!-- Branding Actions -->
+                <div class="button-group">
+                    <button id="preview-branding" class="btn btn-secondary">Preview Changes</button>
+                    <button id="reset-branding" class="btn btn-secondary">Reset to Default</button>
+                    <button id="export-branding" class="btn btn-secondary">Export Config</button>
+                    <label for="import-branding" class="btn btn-secondary">
+                        Import Config
+                        <input type="file" id="import-branding" accept=".json" style="display: none;">
+                    </label>
+                </div>
+            </section>
+
             <!-- Save Button -->
             <div class="save-section">
                 <button id="save-settings" class="btn btn-primary">Save Settings</button>
@@ -286,6 +408,7 @@
         </main>
     </div>
 
+    <script src="../scripts/branding-manager.js"></script>
     <script src="options.js"></script>
     <script src="../scripts/dev-mode-indicator.js"></script>
 </body>
