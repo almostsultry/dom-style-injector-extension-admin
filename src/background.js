@@ -74,6 +74,12 @@ async function handleMessage(request) {
     case 'syncFromDataverse':
       return await handleSyncFromDataverse();
 
+    case 'syncToSharePoint':
+      return await handleSyncToSharePoint(request);
+
+    case 'syncFromSharePoint':
+      return await handleSyncFromSharePoint();
+
     case 'background-sync':
       return await handleBackgroundSync();
 
@@ -577,6 +583,14 @@ async function handleSyncFromDataverse() {
   return await syncFromDataverse();
 }
 
+async function handleSyncToSharePoint(request) {
+  return await syncToSharePoint(request.token);
+}
+
+async function handleSyncFromSharePoint() {
+  return await syncFromSharePoint();
+}
+
 async function handleBackgroundSync() {
   try {
     await performPeriodicSync();
@@ -920,42 +934,82 @@ async function syncFromDataverse() {
   try {
     console.log('Syncing customizations from Dataverse...');
 
-    // For now, return mock data until Dataverse integration is fully implemented
-    const mockCustomizations = [
-      {
-        id: 'dv-1',
-        name: 'Hide Help Panel',
-        selector: '#helpPanelContainer',
-        css: 'display: none !important;',
-        enabled: true,
-        createdBy: 'admin@company.com',
-        createdDate: new Date().toISOString(),
-        lastModified: new Date().toISOString(),
-        source: 'dataverse'
-      },
-      {
-        id: 'dv-2',
-        name: 'Highlight Required Fields',
-        selector: '.required-field',
-        css: 'border: 2px solid #ff0000 !important;',
-        enabled: false,
-        createdBy: 'admin@company.com',
-        createdDate: new Date().toISOString(),
-        lastModified: new Date().toISOString(),
-        source: 'dataverse'
+    // Get authentication token
+    const { authToken } = await chrome.storage.session.get(['authToken']);
+    if (!authToken) {
+      throw new Error('Authentication required for Dataverse sync');
+    }
+
+    const d365OrgUrl = await getD365OrgUrl();
+    const tableName = await getDataverseTableName();
+
+    // Query Dataverse for customizations
+    const queryUrl = `${d365OrgUrl}/api/data/v9.2/${tableName}?$select=cr123_customizationid,cr123_name,cr123_selector,cr123_css,cr123_javascript,cr123_enabled,cr123_description,cr123_targeturl,cr123_priority,cr123_category,cr123_pseudoclasses,createdon,modifiedon,_createdby_value&$filter=statecode eq 0&$orderby=cr123_priority asc,cr123_name asc`;
+
+    const response = await fetch(queryUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Accept': 'application/json',
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        'Prefer': 'odata.include-annotations="*"'
       }
-    ];
+    });
+
+    if (!response.ok) {
+      throw new Error(`Dataverse query failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const dataverseCustomizations = data.value || [];
+
+    // Transform Dataverse records to local format
+    const customizations = dataverseCustomizations.map(record => ({
+      id: record.cr123_customizationid || generateId(),
+      name: record.cr123_name,
+      selector: record.cr123_selector,
+      css: record.cr123_css || '',
+      javascript: record.cr123_javascript || '',
+      enabled: record.cr123_enabled || false,
+      description: record.cr123_description || '',
+      targetUrl: record.cr123_targeturl || '',
+      priority: record.cr123_priority || 1,
+      category: record.cr123_category || 'General',
+      pseudoClasses: record.cr123_pseudoclasses ? JSON.parse(record.cr123_pseudoclasses) : {},
+      createdOn: record.createdon,
+      modifiedOn: record.modifiedon,
+      source: 'dataverse',
+      dataverseId: record[`${tableName}id`]
+    }));
+
+    // Merge with local customizations (Dataverse takes precedence)
+    const { customizations: localCustomizations = [] } = await chrome.storage.local.get('customizations');
+    
+    // Create a map of Dataverse customizations by ID
+    const dataverseMap = new Map(customizations.map(c => [c.id, c]));
+    
+    // Keep local customizations that don't exist in Dataverse
+    const localOnly = localCustomizations.filter(local => 
+      !local.source || local.source === 'local'
+    );
+
+    // Merge arrays, with Dataverse taking precedence
+    const mergedCustomizations = [...customizations, ...localOnly];
 
     // Update local storage
     await chrome.storage.local.set({
-      customizations: mockCustomizations,
-      lastSync: new Date().toISOString()
+      customizations: mergedCustomizations,
+      lastDataverseSync: new Date().toISOString(),
+      dataverseSyncCount: customizations.length
     });
 
     return {
       success: true,
-      count: mockCustomizations.length,
-      timestamp: Date.now()
+      count: customizations.length,
+      totalCount: mergedCustomizations.length,
+      timestamp: Date.now(),
+      message: `Synced ${customizations.length} customizations from Dataverse`
     };
 
   } catch (error) {
@@ -968,15 +1022,17 @@ async function syncCustomizationToDataverse(customization, authToken, orgUrl, ta
   try {
     // Prepare data for Dataverse custom table
     const dataverseRecord = {
+      'cr123_customizationid': customization.id,
       'cr123_name': customization.name,
       'cr123_selector': customization.selector,
-      'cr123_css': customization.css,
+      'cr123_css': customization.css || '',
       'cr123_javascript': customization.javascript || '',
-      'cr123_enabled': customization.enabled,
+      'cr123_enabled': customization.enabled !== false,
       'cr123_description': customization.description || '',
       'cr123_targeturl': customization.targetUrl || '',
       'cr123_priority': customization.priority || 1,
-      'cr123_category': customization.category || 'General'
+      'cr123_category': customization.category || 'General',
+      'cr123_pseudoclasses': customization.pseudoClasses ? JSON.stringify(customization.pseudoClasses) : null
     };
 
     // Check if record already exists
@@ -1046,6 +1102,239 @@ async function findExistingDataverseRecord(externalId, authToken, orgUrl, tableN
 
   } catch (error) {
     console.error('Error finding existing Dataverse record:', error);
+    return null;
+  }
+}
+
+// SharePoint synchronization functions (alternative to Dataverse)
+async function syncToSharePoint(authToken) {
+  try {
+    console.log('Syncing customizations to SharePoint...');
+
+    // Get SharePoint configuration
+    const { sharePointUrl, sharePointListName } = await chrome.storage.sync.get(['sharePointUrl', 'sharePointListName']);
+    
+    if (!sharePointUrl || !sharePointListName) {
+      throw new Error('SharePoint configuration missing. Please configure SharePoint URL and list name in settings.');
+    }
+
+    // Get local customizations
+    const { customizations = [] } = await chrome.storage.local.get('customizations');
+
+    if (customizations.length === 0) {
+      return { success: true, count: 0, message: 'No customizations to sync' };
+    }
+
+    // Get SharePoint list metadata
+    const listUrl = `${sharePointUrl}/_api/web/lists/getbytitle('${sharePointListName}')`;
+    const listResponse = await fetch(listUrl, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Accept': 'application/json;odata=verbose'
+      }
+    });
+
+    if (!listResponse.ok) {
+      throw new Error(`SharePoint list access failed: ${listResponse.status} ${listResponse.statusText}`);
+    }
+
+    let successCount = 0;
+    const errors = [];
+
+    // Sync each customization to SharePoint
+    for (const customization of customizations) {
+      try {
+        await syncCustomizationToSharePoint(customization, authToken, sharePointUrl, sharePointListName);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to sync customization ${customization.name}:`, error);
+        errors.push({
+          name: customization.name,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      count: successCount,
+      errors: errors,
+      timestamp: Date.now(),
+      message: `Synced ${successCount} of ${customizations.length} customizations to SharePoint`
+    };
+
+  } catch (error) {
+    console.error('SharePoint sync error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function syncFromSharePoint() {
+  try {
+    console.log('Syncing customizations from SharePoint...');
+
+    // Get authentication token
+    const { authToken } = await chrome.storage.session.get(['authToken']);
+    if (!authToken) {
+      throw new Error('Authentication required for SharePoint sync');
+    }
+
+    // Get SharePoint configuration
+    const { sharePointUrl, sharePointListName } = await chrome.storage.sync.get(['sharePointUrl', 'sharePointListName']);
+    
+    if (!sharePointUrl || !sharePointListName) {
+      throw new Error('SharePoint configuration missing');
+    }
+
+    // Query SharePoint list
+    const queryUrl = `${sharePointUrl}/_api/web/lists/getbytitle('${sharePointListName}')/items?$select=ID,Title,Selector,CSS,JavaScript,Enabled,Description,TargetURL,Priority,Category,PseudoClasses,Created,Modified,Author/Title&$expand=Author&$filter=Enabled eq true&$orderby=Priority asc,Title asc`;
+
+    const response = await fetch(queryUrl, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Accept': 'application/json;odata=verbose'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`SharePoint query failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const sharePointItems = data.d.results || [];
+
+    // Transform SharePoint items to local format
+    const customizations = sharePointItems.map(item => ({
+      id: `sp_${item.ID}`,
+      name: item.Title,
+      selector: item.Selector,
+      css: item.CSS || '',
+      javascript: item.JavaScript || '',
+      enabled: item.Enabled !== false,
+      description: item.Description || '',
+      targetUrl: item.TargetURL || '',
+      priority: item.Priority || 1,
+      category: item.Category || 'General',
+      pseudoClasses: item.PseudoClasses ? JSON.parse(item.PseudoClasses) : {},
+      createdOn: item.Created,
+      modifiedOn: item.Modified,
+      createdBy: item.Author ? item.Author.Title : 'Unknown',
+      source: 'sharepoint',
+      sharePointId: item.ID
+    }));
+
+    // Merge with local customizations
+    const { customizations: localCustomizations = [] } = await chrome.storage.local.get('customizations');
+    
+    // Keep local customizations that don't exist in SharePoint
+    const localOnly = localCustomizations.filter(local => 
+      !local.source || local.source === 'local'
+    );
+
+    // Merge arrays, with SharePoint taking precedence
+    const mergedCustomizations = [...customizations, ...localOnly];
+
+    // Update local storage
+    await chrome.storage.local.set({
+      customizations: mergedCustomizations,
+      lastSharePointSync: new Date().toISOString(),
+      sharePointSyncCount: customizations.length
+    });
+
+    return {
+      success: true,
+      count: customizations.length,
+      totalCount: mergedCustomizations.length,
+      timestamp: Date.now(),
+      message: `Synced ${customizations.length} customizations from SharePoint`
+    };
+
+  } catch (error) {
+    console.error('SharePoint sync error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function syncCustomizationToSharePoint(customization, authToken, sharePointUrl, listName) {
+  try {
+    // Prepare data for SharePoint list
+    const sharePointItem = {
+      '__metadata': { 'type': 'SP.Data.' + listName.replace(/\s/g, '') + 'ListItem' },
+      'Title': customization.name,
+      'Selector': customization.selector,
+      'CSS': customization.css || '',
+      'JavaScript': customization.javascript || '',
+      'Enabled': customization.enabled !== false,
+      'Description': customization.description || '',
+      'TargetURL': customization.targetUrl || '',
+      'Priority': customization.priority || 1,
+      'Category': customization.category || 'General',
+      'PseudoClasses': customization.pseudoClasses ? JSON.stringify(customization.pseudoClasses) : '',
+      'ExternalID': customization.id
+    };
+
+    // Check if item already exists
+    const existingItem = await findExistingSharePointItem(customization.id, authToken, sharePointUrl, listName);
+
+    let response;
+    if (existingItem) {
+      // Update existing item
+      response = await fetch(`${sharePointUrl}/_api/web/lists/getbytitle('${listName}')/items(${existingItem.ID})`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Accept': 'application/json;odata=verbose',
+          'Content-Type': 'application/json;odata=verbose',
+          'IF-MATCH': '*',
+          'X-HTTP-Method': 'MERGE'
+        },
+        body: JSON.stringify(sharePointItem)
+      });
+    } else {
+      // Create new item
+      response = await fetch(`${sharePointUrl}/_api/web/lists/getbytitle('${listName}')/items`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Accept': 'application/json;odata=verbose',
+          'Content-Type': 'application/json;odata=verbose'
+        },
+        body: JSON.stringify(sharePointItem)
+      });
+    }
+
+    if (!response.ok) {
+      throw new Error(`SharePoint API error: ${response.status} ${response.statusText}`);
+    }
+
+    console.log(`Successfully synced customization ${customization.name} to SharePoint`);
+
+  } catch (error) {
+    console.error(`Error syncing customization ${customization.name} to SharePoint:`, error);
+    throw error;
+  }
+}
+
+async function findExistingSharePointItem(externalId, authToken, sharePointUrl, listName) {
+  try {
+    const queryUrl = `${sharePointUrl}/_api/web/lists/getbytitle('${listName}')/items?$filter=ExternalID eq '${externalId}'&$select=ID`;
+    
+    const response = await fetch(queryUrl, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Accept': 'application/json;odata=verbose'
+      }
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return data.d.results && data.d.results.length > 0 ? data.d.results[0] : null;
+
+  } catch (error) {
+    console.error('Error finding existing SharePoint item:', error);
     return null;
   }
 }

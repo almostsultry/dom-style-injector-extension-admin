@@ -1,4 +1,4 @@
-// build/webpack.config.js - Fixed to match actual file structure
+// build/webpack.config.js - Enhanced to support ES6 modules and MSAL
 
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
@@ -18,6 +18,21 @@ module.exports = {
     filename: '[name].js',
     clean: true, // Clean the dist folder before each build
   },
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env'],
+            plugins: ['@babel/plugin-transform-runtime']
+          }
+        }
+      }
+    ]
+  },
   plugins: [
     new CopyPlugin({
       patterns: [
@@ -35,6 +50,9 @@ module.exports = {
         { from: 'src/options', to: 'options', noErrorOnMissing: true },
         { from: 'src/styles', to: 'styles', noErrorOnMissing: true },
 
+        // Copy auth files (MSAL library and configs)
+        { from: 'src/auth', to: 'auth', noErrorOnMissing: true },
+
         // Copy content script if it exists in a different location
         { from: 'src/scripts/content.js', to: 'content.js', noErrorOnMissing: true },
       ],
@@ -42,7 +60,18 @@ module.exports = {
   ],
   resolve: {
     extensions: ['.js'],
+    alias: {
+      // Add aliases for cleaner imports
+      '@auth': path.resolve(__dirname, '..', 'src', 'auth'),
+      '@scripts': path.resolve(__dirname, '..', 'src', 'scripts'),
+      '@popup': path.resolve(__dirname, '..', 'src', 'popup')
+    }
   },
   // Source map for easier debugging
   devtool: 'cheap-module-source-map',
+  // Handle external dependencies that shouldn't be bundled
+  externals: {
+    // Chrome extension APIs are available globally
+    'chrome': 'chrome'
+  }
 };

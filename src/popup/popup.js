@@ -2,9 +2,10 @@
 // Combines existing MSAL authentication with new pseudo-class functionality
 
 // =============================================================================
-// MSAL INTEGRATION - Import authentication services
+// MSAL INTEGRATION - Authentication services will be loaded via script tags
 // =============================================================================
-import { initializeMSAL, authenticateUser, isAuthenticated, getCurrentAccount, logoutUser, getAccessToken } from '../auth/auth-service.js';
+// MSAL functions will be available globally after auth-service.js loads
+// Functions available: initializeMSAL, authenticateUser, isAuthenticated, getCurrentAccount, logoutUser, getAccessToken
 
 // MSAL integration flag
 let msalAvailable = false;
@@ -83,11 +84,11 @@ const PSEUDO_CLASSES = [
     'checked', 'disabled', 'enabled', 'required', 'optional'
 ];
 
-// MSAL Configuration
+// MSAL Configuration - will be loaded from storage or use defaults
 const msalConfig = {
     auth: {
-        clientId: 'YOUR_APP_CLIENT_ID',
-        authority: 'https://login.microsoftonline.com/YOUR_TENANT_ID',
+        clientId: null, // Will be loaded from storage
+        authority: null, // Will be loaded from storage
         redirectUri: chrome.identity.getRedirectURL()
     },
     cache: {
@@ -95,6 +96,26 @@ const msalConfig = {
         storeAuthStateInCookie: false
     }
 };
+
+// Load MSAL configuration from storage
+async function loadMSALConfig() {
+    try {
+        const config = await chrome.storage.sync.get(['clientId', 'tenantId']);
+        
+        if (config.clientId && config.tenantId) {
+            msalConfig.auth.clientId = config.clientId;
+            msalConfig.auth.authority = `https://login.microsoftonline.com/${config.tenantId}`;
+            return true;
+        }
+        
+        // Use defaults if not configured
+        console.warn('MSAL configuration not found in storage. Please configure in extension options.');
+        return false;
+    } catch (error) {
+        console.error('Error loading MSAL configuration:', error);
+        return false;
+    }
+}
 
 // =============================================================================
 // SETTINGS NAVIGATION - From existing version
@@ -151,10 +172,26 @@ function setupErrorViewEventListeners() {
 // =============================================================================
 async function initializeMSALIfAvailable() {
     try {
-        await initializeMSAL();
-        msalAvailable = true;
-        console.log('MSAL initialized successfully');
-        return true;
+        // First load MSAL configuration from storage
+        const configLoaded = await loadMSALConfig();
+        
+        if (!configLoaded) {
+            console.log('MSAL configuration not available, using chrome.identity fallback');
+            msalAvailable = false;
+            return false;
+        }
+        
+        // Check if MSAL functions are available globally
+        if (typeof window.initializeMSAL === 'function') {
+            await window.initializeMSAL();
+            msalAvailable = true;
+            console.log('MSAL initialized successfully');
+            return true;
+        } else {
+            console.log('MSAL functions not available, using chrome.identity fallback');
+            msalAvailable = false;
+            return false;
+        }
     } catch (msalError) {
         if (msalError.message.includes('configuration required')) {
             console.log('MSAL not configured, will use chrome.identity fallback');
@@ -171,8 +208,17 @@ async function initializeMSALIfAvailable() {
 // Initialize MSAL (legacy fallback)
 async function initializeMsal() {
     if (typeof PublicClientApplication !== 'undefined') {
-        msalInstance = new PublicClientApplication(msalConfig);
-        await msalInstance.initialize();
+        // Ensure configuration is loaded
+        if (!msalConfig.auth.clientId || !msalConfig.auth.authority) {
+            await loadMSALConfig();
+        }
+        
+        if (msalConfig.auth.clientId && msalConfig.auth.authority) {
+            msalInstance = new PublicClientApplication(msalConfig);
+            await msalInstance.initialize();
+        } else {
+            console.warn('Cannot initialize MSAL without client ID and tenant ID');
+        }
     }
 }
 
@@ -184,17 +230,17 @@ async function getAuthToken() {
         // Try MSAL authentication first if available
         if (msalAvailable) {
             try {
-                if (await isAuthenticated()) {
-                    const account = getCurrentAccount();
+                if (typeof window.isAuthenticated === 'function' && await window.isAuthenticated()) {
+                    const account = typeof window.getCurrentAccount === 'function' ? window.getCurrentAccount() : null;
                     if (account) {
                         console.log('Using existing MSAL authentication:', account.username);
-                        const token = await getAccessToken();
+                        const token = typeof window.getAccessToken === 'function' ? await window.getAccessToken() : null;
                         return token;
                     }
                 }
 
                 console.log('Starting MSAL authentication...');
-                const result = await authenticateUser();
+                const result = typeof window.authenticateUser === 'function' ? await window.authenticateUser() : { success: false, error: 'MSAL not available' };
 
                 if (result.success) {
                     console.log('MSAL authentication successful:', result.user.username);
@@ -218,9 +264,7 @@ async function getAuthToken() {
         }
 
         if (!config.clientId || !config.tenantId) {
-            config.clientId = config.clientId || 'YOUR_DEFAULT_CLIENT_ID';
-            config.tenantId = config.tenantId || 'YOUR_DEFAULT_TENANT_ID';
-            console.warn('Using default Azure AD configuration. Please configure in extension options.');
+            throw new Error('Azure AD configuration required. Please configure Client ID and Tenant ID in extension options.');
         }
 
         // Check for cached token first
@@ -373,7 +417,7 @@ async function clearAuthCache() {
     
     if (msalAvailable) {
         try {
-            await logoutUser();
+            if (typeof window.logoutUser === 'function') await window.logoutUser();
             console.log('MSAL cache cleared');
         } catch (msalError) {
             console.log('Error clearing MSAL cache:', msalError);
@@ -559,7 +603,7 @@ async function handleLogout() {
 
         if (msalAvailable) {
             try {
-                const result = await logoutUser();
+                const result = typeof window.logoutUser === 'function' ? await window.logoutUser() : { success: false };
                 if (result.success) {
                     console.log('MSAL logout successful');
                 }
