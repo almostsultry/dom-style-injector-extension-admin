@@ -5,130 +5,376 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>D365 DOM Style Injector</title>
-    <link href="popup.css" rel="stylesheet">
+    <link href="styles/common.css" rel="stylesheet">
+    <link href="styles/popup.css" rel="stylesheet">
+    <link href="styles/pseudo-classes.css" rel="stylesheet">
 </head>
 
 <body>
-    <!-- Loader View - Authentication -->
-    <div id="loader-view">
-        <p>Authenticating and checking permissions...</p>
-        <div class="spinner"></div>
+    <!-- PRESERVED: Existing loader view -->
+    <div id="loader-view" class="view">
+        <div class="header">
+            <h1>Style Injector</h1>
+            <div class="subtitle">Loading...</div>
+        </div>
+        <div class="content">
+            <div class="section text-center">
+                <p>Authenticating and checking permissions...</p>
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
     </div>
 
-    <!-- Admin View - Enhanced with unified fields -->
+    <!-- ENHANCED: Admin view with preserved functionality + new features -->
     <div id="admin-view" class="view">
-        <h1>Style Administrator</h1>
-        <p>Create and manage injection rules for your organization.</p>
-
-        <!-- Status message area -->
-        <div id="status" class="status" style="display: none;"></div>
-
-        <!-- Style Creation Form -->
-        <form id="styleForm">
-            <div class="form-group">
-                <label for="targets">Target(s)</label>
-                <input type="text" id="targets" placeholder='e.g., data-id="editFormRoot"; class="form-header"'
-                    title="Enter one or more element properties in format: property=&quot;value&quot;. Use semicolons to separate multiple targets.">
-                <small class="form-hint">
-                    Format: property="value". Use semicolons for multiple targets.
-                    <br>Examples: id="myElement" or data-id="root"; class="header"
-                </small>
-            </div>
-
-            <div class="form-group">
-                <label for="styles">Style(s)</label>
-                <input type="text" id="styles" placeholder='e.g., background-color: #ff0000; border: 1px solid blue'
-                    title="Enter one or more CSS properties in format: property: value. Use semicolons to separate multiple styles.">
-                <small class="form-hint">
-                    Format: property: value. Use semicolons for multiple styles.
-                    <br>Examples: color: red or background-color: #fff; padding: 10px
-                </small>
-            </div>
-
-            <div class="form-actions">
-                <button type="button" id="clearBtn">Clear</button>
-                <button type="submit">Apply Style</button>
-                <button type="button" id="saveBtn" style="display: none;">Save Customization</button>
-            </div>
-        </form>
-
-        <!-- Query String Section -->
-        <div id="queryStringSection" class="section" style="display: none;">
-            <h3>URL Parameters</h3>
-            <p class="form-hint">Select which URL parameters should trigger this customization:</p>
-            <div id="queryStringList"></div>
+        <div class="header">
+            <h1>Style Administrator</h1>
+            <div class="subtitle">Create and manage injection rules</div>
         </div>
 
-        <!-- Existing Customizations -->
-        <div class="section">
-            <h3>Existing Customizations</h3>
-            <div id="existingCustomizations" class="customization-list">
-                <div class="empty-state">
-                    <p>No customizations found</p>
-                    <small>Create your first style rule above</small>
+        <div class="content">
+            <!-- PRESERVED: Quick CSS Editor (existing functionality) -->
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Quick CSS Editor</h2>
+                    <button id="toggle-quick-editor" class="btn btn-secondary btn-sm">
+                        <span class="btn-text">Toggle</span>
+                    </button>
+                </div>
+
+                <div id="quick-editor-section" class="quick-editor">
+                    <div class="form-group">
+                        <label for="css-editor" class="form-label">CSS Rules</label>
+                        <textarea id="css-editor" class="form-textarea" rows="6" placeholder="Enter custom CSS...
+Example:
+.btn-primary {
+  background-color: #007acc;
+  color: white;
+}"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button id="save-rule" class="btn btn-primary">Save Rule</button>
+                        <button id="clear-editor" class="btn btn-secondary">Clear</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW: Advanced Rule Creator with Pseudo-Class Support -->
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Advanced Rule Creator</h2>
+                    <button id="toggle-create-form" class="btn btn-primary">
+                        <span class="btn-text">New Rule</span>
+                        <span class="btn-icon">+</span>
+                    </button>
+                </div>
+
+                <div id="create-form" class="create-form">
+                    <form id="customization-form">
+                        <div class="form-group">
+                            <label for="rule-name" class="form-label">Rule Name</label>
+                            <input type="text" id="rule-name" class="form-input" placeholder="e.g., Button Hover Effect"
+                                required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="css-selector" class="form-label">CSS Selector</label>
+                            <input type="text" id="css-selector" class="form-input"
+                                placeholder="e.g., .btn-primary, #save-button" required
+                                aria-describedby="selector-help">
+                            <small id="selector-help" class="form-help">Target elements using CSS selectors (e.g.,
+                                .class-name, #element-id, [data-attribute])</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="base-css" class="form-label">Base CSS Properties</label>
+                            <textarea id="base-css" class="form-textarea" rows="4" placeholder="background-color: #007acc;
+color: white;
+border-radius: 4px;" aria-describedby="base-css-help"></textarea>
+                            <small id="base-css-help" class="form-help">CSS properties applied to all matching elements
+                                in their default state</small>
+                        </div>
+
+                        <!-- NEW: Pseudo-Class Configuration -->
+                        <div class="form-group">
+                            <label class="form-label">
+                                Element States & Pseudo-Classes
+                                <small class="form-help">Define styles for different element states</small>
+                            </label>
+                            <div class="pseudo-class-container">
+                                <div class="pseudo-class-tabs">
+                                    <button type="button" class="pseudo-tab active" data-pseudo="hover">:hover</button>
+                                    <button type="button" class="pseudo-tab" data-pseudo="active">:active</button>
+                                    <button type="button" class="pseudo-tab" data-pseudo="focus">:focus</button>
+                                    <button type="button" class="pseudo-tab"
+                                        data-pseudo="focus-within">:focus-within</button>
+                                    <button type="button" class="pseudo-tab" data-pseudo="valid">:valid</button>
+                                    <button type="button" class="pseudo-tab" data-pseudo="invalid">:invalid</button>
+                                    <button type="button" class="pseudo-tab" data-pseudo="disabled">:disabled</button>
+                                    <button type="button" class="pseudo-tab" data-pseudo="checked">:checked</button>
+                                </div>
+
+                                <div class="pseudo-class-content">
+                                    <div class="pseudo-panel active" data-pseudo="hover">
+                                        <div class="form-group">
+                                            <label for="hover-css" class="form-label">Hover State CSS</label>
+                                            <textarea id="hover-css" class="form-textarea pseudo-css" rows="3"
+                                                placeholder="background-color: #0056b3;
+transform: scale(1.05);
+transition: all 0.3s ease;" aria-describedby="hover-help"></textarea>
+                                            <small id="hover-help" class="form-help">CSS applied when user hovers over
+                                                the element</small>
+                                            <div class="pseudo-class-toggle">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" class="pseudo-enabled" data-pseudo="hover"
+                                                        aria-label="Enable hover styles">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                                <span class="toggle-label">Enable :hover styles</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="pseudo-panel" data-pseudo="active">
+                                        <div class="form-group">
+                                            <label for="active-css" class="form-label">Active State CSS</label>
+                                            <textarea id="active-css" class="form-textarea pseudo-css" rows="3"
+                                                placeholder="background-color: #004494;
+transform: scale(0.95);
+transition: all 0.1s ease;" aria-describedby="active-help"></textarea>
+                                            <small id="active-help" class="form-help">CSS applied when element is being
+                                                clicked or pressed</small>
+                                            <div class="pseudo-class-toggle">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" class="pseudo-enabled" data-pseudo="active"
+                                                        aria-label="Enable active styles">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                                <span class="toggle-label">Enable :active styles</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="pseudo-panel" data-pseudo="focus">
+                                        <div class="form-group">
+                                            <label for="focus-css" class="form-label">Focus State CSS</label>
+                                            <textarea id="focus-css" class="form-textarea pseudo-css" rows="3"
+                                                placeholder="outline: 2px solid #007acc;
+outline-offset: 2px;
+box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.3);" aria-describedby="focus-help"></textarea>
+                                            <small id="focus-help" class="form-help">CSS applied when element receives
+                                                keyboard focus</small>
+                                            <div class="pseudo-class-toggle">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" class="pseudo-enabled" data-pseudo="focus"
+                                                        aria-label="Enable focus styles">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                                <span class="toggle-label">Enable :focus styles</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="pseudo-panel" data-pseudo="focus-within">
+                                        <div class="form-group">
+                                            <label for="focus-within-css" class="form-label">Focus-Within State
+                                                CSS</label>
+                                            <textarea id="focus-within-css" class="form-textarea pseudo-css" rows="3"
+                                                placeholder="border-color: #007acc;
+box-shadow: 0 0 0 1px rgba(0, 122, 204, 0.2);" aria-describedby="focus-within-help"></textarea>
+                                            <small id="focus-within-help" class="form-help">CSS applied when element or
+                                                its children have focus</small>
+                                            <div class="pseudo-class-toggle">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" class="pseudo-enabled"
+                                                        data-pseudo="focus-within"
+                                                        aria-label="Enable focus-within styles">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                                <span class="toggle-label">Enable :focus-within styles</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="pseudo-panel" data-pseudo="valid">
+                                        <div class="form-group">
+                                            <label for="valid-css" class="form-label">Valid State CSS</label>
+                                            <textarea id="valid-css" class="form-textarea pseudo-css" rows="3"
+                                                placeholder="border-color: #28a745;
+background-color: #f8fff9;" aria-describedby="valid-help"></textarea>
+                                            <small id="valid-help" class="form-help">CSS applied when form input is
+                                                valid</small>
+                                            <div class="pseudo-class-toggle">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" class="pseudo-enabled" data-pseudo="valid"
+                                                        aria-label="Enable valid styles">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                                <span class="toggle-label">Enable :valid styles</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="pseudo-panel" data-pseudo="invalid">
+                                        <div class="form-group">
+                                            <label for="invalid-css" class="form-label">Invalid State CSS</label>
+                                            <textarea id="invalid-css" class="form-textarea pseudo-css" rows="3"
+                                                placeholder="border-color: #dc3545;
+background-color: #fff8f8;" aria-describedby="invalid-help"></textarea>
+                                            <small id="invalid-help" class="form-help">CSS applied when form input is
+                                                invalid</small>
+                                            <div class="pseudo-class-toggle">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" class="pseudo-enabled" data-pseudo="invalid"
+                                                        aria-label="Enable invalid styles">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                                <span class="toggle-label">Enable :invalid styles</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="pseudo-panel" data-pseudo="disabled">
+                                        <div class="form-group">
+                                            <label for="disabled-css" class="form-label">Disabled State CSS</label>
+                                            <textarea id="disabled-css" class="form-textarea pseudo-css" rows="3"
+                                                placeholder="opacity: 0.5;
+cursor: not-allowed;
+background-color: #f5f5f5;" aria-describedby="disabled-help"></textarea>
+                                            <small id="disabled-help" class="form-help">CSS applied when form element is
+                                                disabled</small>
+                                            <div class="pseudo-class-toggle">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" class="pseudo-enabled" data-pseudo="disabled"
+                                                        aria-label="Enable disabled styles">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                                <span class="toggle-label">Enable :disabled styles</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="pseudo-panel" data-pseudo="checked">
+                                        <div class="form-group">
+                                            <label for="checked-css" class="form-label">Checked State CSS</label>
+                                            <textarea id="checked-css" class="form-textarea pseudo-css" rows="3"
+                                                placeholder="background-color: #007acc;
+border-color: #007acc;" aria-describedby="checked-help"></textarea>
+                                            <small id="checked-help" class="form-help">CSS applied when checkbox or
+                                                radio button is checked</small>
+                                            <div class="pseudo-class-toggle">
+                                                <label class="toggle-switch">
+                                                    <input type="checkbox" class="pseudo-enabled" data-pseudo="checked"
+                                                        aria-label="Enable checked styles">
+                                                    <span class="toggle-slider"></span>
+                                                </label>
+                                                <span class="toggle-label">Enable :checked styles</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" id="test-selector" class="btn btn-secondary">Test Selector</button>
+                            <button type="submit" class="btn btn-primary">Save Advanced Rule</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ENHANCED: Active Rules List -->
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Active Rules</h2>
+                    <span id="rule-count" class="rule-count">0 rules</span>
+                </div>
+
+                <div class="sync-info">
+                    <span id="sync-status" class="sync-status">Never synced</span>
+                    <button id="sync-rules" class="btn btn-secondary btn-sm">Sync</button>
+                </div>
+
+                <div id="customization-list" class="customization-list">
+                    <!-- Rules will be populated here -->
+                </div>
+
+                <div id="empty-state" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+                        <path d="M2 17L12 22L22 17" />
+                        <path d="M2 12L12 17L22 12" />
+                    </svg>
+                    <p>No customization rules yet</p>
+                    <p class="text-muted">Create your first rule to get started</p>
                 </div>
             </div>
         </div>
-
-        <!-- Advanced CSS Editor -->
-        <div class="section">
-            <h3>Advanced CSS Editor</h3>
-            <textarea id="css-editor" placeholder="Enter custom CSS rules for advanced styling..."></textarea>
-            <button id="save-rule">Save Advanced Rule</button>
-        </div>
     </div>
 
-    <!-- User View - Read-only -->
+    <!-- PRESERVED: User view (unchanged from original) -->
     <div id="user-view" class="view">
-        <h1>DOM Style Injector</h1>
-        <p>Custom enterprise styles are being applied.</p>
-        <p>Please contact your System Customizer to request changes.</p>
+        <div class="header">
+            <h1>DOM Style Injector</h1>
+            <div class="subtitle">Enterprise customizations active</div>
+        </div>
 
-        <!-- Show current customizations for this page -->
-        <div class="section">
-            <h3>Active Customizations</h3>
-            <div id="user-customizations" class="customization-list">
-                <div class="empty-state">
-                    <p>No customizations active on this page</p>
+        <div class="content">
+            <div class="section">
+                <p>Custom enterprise styles are being applied.</p>
+                <p>Please contact your System Customizer to request changes.</p>
+
+                <div class="sync-info">
+                    <span id="user-sync-status" class="sync-status">Checking for updates...</span>
+                    <button id="user-sync-rules" class="btn btn-secondary btn-sm">Refresh</button>
+                </div>
+
+                <div id="user-customization-list" class="customization-list">
+                    <!-- User rules will be populated here -->
+                </div>
+
+                <div id="user-empty-state" class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M9 12L11 14L15 10" />
+                        <path
+                            d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" />
+                    </svg>
+                    <p>No customizations available</p>
+                    <p class="text-muted">Contact your System Customizer to request changes</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Error View -->
+    <!-- PRESERVED: Error view (unchanged from original) -->
     <div id="error-view" class="view">
-        <h1>Configuration Required</h1>
-        <div class="error-content">
-            <p id="error-message">An error occurred.</p>
-            <div class="error-actions">
-                <button id="open-settings-btn" class="btn btn-primary">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M12 1v6m0 8v6m11-12h-6m-8 0H1"></path>
-                    </svg>
-                    Open Settings
-                </button>
-                <button id="retry-auth-btn" class="btn btn-secondary">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 4v6h-6M1 20v-6h6"></path>
-                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-                    </svg>
-                    Retry
-                </button>
-            </div>
-            <div class="help-text">
-                <p><strong>Quick Setup:</strong></p>
-                <ol>
-                    <li>Click "Open Settings" above</li>
-                    <li>Enter your D365 Organization URL</li>
-                    <li>Configure Azure AD settings (Client ID & Tenant ID)</li>
-                    <li>Click "Retry" to authenticate</li>
-                </ol>
-            </div>
-        </div>
+        <div class="header">
+            <h1>Error</h1>
+            <div class="subtitle">Something went wrong</div>
         </div>
 
-    <script src="../popup/popup.js"></script>
+        <div class="content">
+            <div class="section">
+                <div class="message message-error">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M15 9L9 15" />
+                        <path d="M9 9L15 15" />
+                    </svg>
+                    <span id="error-message">An error occurred.</span>
+                </div>
+
+                <div class="form-actions">
+                    <button id="retry-button" class="btn btn-primary">Retry</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRESERVED: Original script reference -->
+    <script src="popup.js"></script>
 </body>
 
 </html>

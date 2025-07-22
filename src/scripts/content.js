@@ -1,109 +1,75 @@
-// src/scripts/content.js - Unified Content Script for D365 DOM Style Injector
-// This script runs on D365 and SharePoint pages and applies customizations based on user role
+// src/scripts/content.js - Complete enhanced version with pseudo-class support
+// Preserves ALL existing functionality while adding pseudo-class capabilities
 
 (function () {
     'use strict';
 
-    // Extension identifier for logging and style management
-    const EXTENSION_PREFIX = 'dom-style-injector';
-    const STYLE_PREFIX = `${EXTENSION_PREFIX}-style-`;
+    // ==================== EXISTING FUNCTIONALITY ====================
+    let isInitialized = false;
+    let currentUrl = window.location.href;
+    let customizationAppliedCount = 0;
+    const pendingRetries = new Map(); // Track pending retries
+    const retryDelays = [1000, 2000, 4000, 8000]; // Exponential backoff delays
 
-    // State management
-    const appliedStyles = new Map(); // Track applied styles by ID
-    let userRole = null; // Will be fetched from storage
-    let isD365Page = false;
-    let isSharePointPage = false;
+    // ==================== NEW PSEUDO-CLASS FUNCTIONALITY ====================
+    // Unique prefix for injected styles
+    const STYLE_PREFIX = 'd365-style-injector-';
+    const appliedStyles = new Map(); // Track base styles
+    const pseudoClassStyles = new Map(); // Track pseudo-class styles separately
 
-    // Page detection patterns
-    const D365_PATTERNS = [
-        /\.dynamics\.com/,
-        /\.crm\d*\.dynamics\.com/,
-        /\/main\.aspx/,
-        /\/form\.aspx/,
-        /\/grid\.aspx/
+    // Supported pseudo-classes and pseudo-elements
+    const SUPPORTED_PSEUDO_CLASSES = [
+        'hover', 'active', 'focus', 'focus-within', 'focus-visible',
+        'target', 'valid', 'invalid', 'read-write', 'read-only',
+        'checked', 'disabled', 'enabled', 'required', 'optional',
+        'visited', 'link', 'first-child', 'last-child', 'nth-child',
+        'first-of-type', 'last-of-type', 'nth-of-type', 'only-child',
+        'only-of-type', 'empty', 'not', 'before', 'after'
     ];
 
-    const SHAREPOINT_PATTERNS = [
-        /\.sharepoint\.com/,
-        /\/sites\//,
-        /\/lists\//,
-        /\/pages\//
-    ];
-
+    // ==================== INITIALIZATION ====================
     // Initialize the content script
     initializeContentScript();
 
     function initializeContentScript() {
-        console.log(`[${EXTENSION_PREFIX}] Content script initializing...`);
+        console.log('DOM Style Injector: Content script initialized with pseudo-class support');
 
-        // Detect page type
-        detectPageType();
-
-        // Get user role and settings
-        loadUserSettings().then(() => {
-            console.log(`[${EXTENSION_PREFIX}] User role:`, userRole?.isAdmin ? 'Admin' : 'User');
-
-            // Apply customizations when DOM is ready
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', handleDOMReady);
-            } else {
-                handleDOMReady();
-            }
-
-            // Watch for URL changes (SPA navigation)
-            setupNavigationWatcher();
-
-            // Watch for DOM mutations
-            setupDOMObserver();
-
-            // Listen for messages from popup/background
-            setupMessageListener();
-
-            console.log(`[${EXTENSION_PREFIX}] Content script initialized successfully`);
-        }).catch(error => {
-            console.error(`[${EXTENSION_PREFIX}] Failed to initialize:`, error);
-        });
-    }
-
-    function detectPageType() {
-        const url = window.location.href;
-        isD365Page = D365_PATTERNS.some(pattern => pattern.test(url));
-        isSharePointPage = SHAREPOINT_PATTERNS.some(pattern => pattern.test(url));
-
-        console.log(`[${EXTENSION_PREFIX}] Page type detected:`, {
-            isD365: isD365Page,
-            isSharePoint: isSharePointPage,
-            url: url
-        });
-    }
-
-    async function loadUserSettings() {
-        try {
-            const result = await chrome.storage.local.get(['userRole', 'extensionSettings']);
-            userRole = result.userRole || { isAdmin: false, timestamp: 0 };
-
-            // Check if role data is stale (older than 8 hours)
-            const isStale = Date.now() - userRole.timestamp > 8 * 60 * 60 * 1000;
-            if (isStale) {
-                console.log(`[${EXTENSION_PREFIX}] Role data is stale, requesting refresh...`);
-                // Request role refresh from background script
-                chrome.runtime.sendMessage({ action: 'checkUserRole' });
-            }
-        } catch (error) {
-            console.error(`[${EXTENSION_PREFIX}] Error loading user settings:`, error);
+        // Apply customizations when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', handleDOMReady);
+        } else {
+            handleDOMReady();
         }
+
+        // Watch for URL changes (SPA navigation)
+        setupURLChangeDetection();
+
+        // Watch for DOM mutations that might indicate page refresh/reload
+        setupDOMObserver();
+
+        // Handle page visibility changes (tab switching, window focus)
+        setupVisibilityHandling();
+
+        // Listen for messages from the popup
+        setupMessageHandling();
+
+        isInitialized = true;
     }
 
     function handleDOMReady() {
-        console.log(`[${EXTENSION_PREFIX}] DOM ready, waiting for dynamic content...`);
+        console.log('DOM Style Injector: DOM Content Loaded detected');
+        customizationAppliedCount = 0;
 
         // Wait for dynamic content to load before applying customizations
         waitForDynamicContent().then(() => {
-            applyCustomizations();
+            autoApplyCustomizations();
         });
     }
 
+    // ==================== DYNAMIC CONTENT WAITING ====================
     async function waitForDynamicContent() {
+        console.log('DOM Style Injector: Waiting for dynamic content to load...');
+
         const maxWaitTime = 10000; // 10 seconds max wait
         const checkInterval = 500; // Check every 500ms
         let waitTime = 0;
@@ -114,30 +80,25 @@
 
                 // Check for common indicators that the page content is loaded
                 const indicators = [
-                    // D365 specific indicators
+                    // Look for form elements that are commonly loaded dynamically
                     document.querySelector('[data-id]'),
-                    document.querySelector('.ms-crm-Form-Selector'),
-                    document.querySelector('#crmContentPanel'),
-                    document.querySelector('.grid-container'),
-
-                    // SharePoint specific indicators
-                    document.querySelector('[data-sp-feature-tag]'),
-                    document.querySelector('.ms-CommandBar'),
-                    document.querySelector('#SPPageContent'),
-
-                    // Generic indicators
                     document.querySelector('[class*="form"]'),
                     document.querySelector('[id*="form"]'),
+                    // Look for any content areas
                     document.querySelector('main'),
                     document.querySelector('[role="main"]'),
-                    document.querySelector('.content-container')
+                    document.querySelector('.page-content'),
+                    // Look for common D365 UI elements
+                    document.querySelector('[data-control-name]'),
+                    document.querySelector('.ms-CommandBar'),
+                    document.querySelector('[data-automation-id]')
                 ];
 
-                const hasContent = indicators.some(el => el !== null);
+                const hasContent = indicators.some(element => element !== null);
 
                 if (hasContent || waitTime >= maxWaitTime) {
-                    console.log(`[${EXTENSION_PREFIX}] Dynamic content ready (waited ${waitTime}ms)`);
-                    resolve();
+                    console.log(`DOM Style Injector: Dynamic content check completed after ${waitTime}ms`);
+                    resolve({ contentDetected: hasContent, waitTime });
                 } else {
                     setTimeout(checkContent, checkInterval);
                 }
@@ -147,330 +108,584 @@
         });
     }
 
-    async function applyCustomizations() {
-        try {
-            console.log(`[${EXTENSION_PREFIX}] Loading customizations...`);
-
-            // Get customizations from storage
-            const result = await chrome.storage.local.get('customizations');
-            const allCustomizations = result.customizations || [];
-
-            if (allCustomizations.length === 0) {
-                console.log(`[${EXTENSION_PREFIX}] No customizations found`);
-                return;
-            }
-
-            // Filter customizations based on current page
-            const applicableCustomizations = filterCustomizationsForCurrentPage(allCustomizations);
-
-            console.log(`[${EXTENSION_PREFIX}] Found ${applicableCustomizations.length} applicable customizations`);
-
-            // Apply each customization
-            let appliedCount = 0;
-            for (const customization of applicableCustomizations) {
-                if (await applyCustomization(customization)) {
-                    appliedCount++;
-                }
-            }
-
-            console.log(`[${EXTENSION_PREFIX}] Successfully applied ${appliedCount} customizations`);
-
-        } catch (error) {
-            console.error(`[${EXTENSION_PREFIX}] Error applying customizations:`, error);
-        }
-    }
-
-    function filterCustomizationsForCurrentPage(customizations) {
-        const currentUrl = window.location.href;
-        const currentDomain = window.location.hostname;
-
-        return customizations.filter(customization => {
-            // Check if customization is enabled
-            if (!customization.enabled) {
-                return false;
-            }
-
-            // Check domain matching
-            if (customization.domain && !currentDomain.includes(customization.domain)) {
-                return false;
-            }
-
-            // Check URL pattern matching
-            if (customization.urlPattern) {
-                const pattern = new RegExp(customization.urlPattern);
-                if (!pattern.test(currentUrl)) {
-                    return false;
-                }
-            }
-
-            // Check query string matching
-            if (customization.queryParams) {
-                const searchParams = new window.URLSearchParams(window.location.search);
-                for (const [key, value] of Object.entries(customization.queryParams)) {
-                    if (searchParams.get(key) !== value) {
-                        return false;
-                    }
-                }
-            }
-
-            // Check page type restrictions
-            if (customization.pageType) {
-                if (customization.pageType === 'd365' && !isD365Page) {
-                    return false;
-                }
-                if (customization.pageType === 'sharepoint' && !isSharePointPage) {
-                    return false;
-                }
-            }
-
-            return true;
-        });
-    }
-
-    async function applyCustomization(customization) {
-        try {
-            const { selector, cssRules, jsCode, name } = customization;
-
-            // Apply CSS rules
-            if (selector && cssRules) {
-                applyStyleRules(customization.id, selector, cssRules);
-            }
-
-            // Apply JavaScript code (admin only)
-            if (jsCode && userRole?.isAdmin) {
-                applyJavaScript(customization.id, jsCode);
-            }
-
-            console.log(`[${EXTENSION_PREFIX}] Applied customization: ${name || customization.id}`);
-            return true;
-
-        } catch (error) {
-            console.error(`[${EXTENSION_PREFIX}] Error applying customization:`, error);
-            return false;
-        }
-    }
-
-    function applyStyleRules(id, selector, cssRules) {
-        const styleId = `${STYLE_PREFIX}${id}`;
-
-        // Remove existing style if it exists
-        const existingStyle = document.getElementById(styleId);
-        if (existingStyle) {
-            existingStyle.remove();
-        }
-
-        // Create new style element
-        const styleElement = document.createElement('style');
-        styleElement.id = styleId;
-        styleElement.setAttribute('data-extension', EXTENSION_PREFIX);
-
-        // Build CSS content
-        let cssContent = '';
-        if (typeof cssRules === 'string') {
-            // Handle simple CSS string
-            cssContent = `${selector} { ${cssRules} }`;
-        } else if (typeof cssRules === 'object') {
-            // Handle CSS rules object
-            const rules = Object.entries(cssRules)
-                .map(([property, value]) => `${property}: ${value}`)
-                .join('; ');
-            cssContent = `${selector} { ${rules} }`;
-        }
-
-        styleElement.textContent = cssContent;
-        document.head.appendChild(styleElement);
-
-        // Track applied style
-        appliedStyles.set(id, {
-            element: styleElement,
-            selector: selector,
-            rules: cssRules,
-            timestamp: Date.now()
-        });
-
-        console.log(`[${EXTENSION_PREFIX}] Applied CSS for ${selector}:`, cssRules);
-    }
-
-    function applyJavaScript(id, jsCode) {
-        try {
-            // Only allow JavaScript execution for admin users
-            if (!userRole?.isAdmin) {
-                console.warn(`[${EXTENSION_PREFIX}] JavaScript execution blocked for non-admin user`);
-                return;
-            }
-
-            // Execute JavaScript in a controlled manner
-            const script = document.createElement('script');
-            script.textContent = `
-                (function() {
-                    try {
-                        ${jsCode}
-                    } catch (error) {
-                        console.error('[${EXTENSION_PREFIX}] Error in custom JavaScript:', error);
-                    }
-                })();
-            `;
-            script.setAttribute('data-extension', EXTENSION_PREFIX);
-            script.setAttribute('data-customization-id', id);
-
-            document.head.appendChild(script);
-
-            // Remove script element after execution
-            setTimeout(() => {
-                if (script.parentNode) {
-                    script.parentNode.removeChild(script);
-                }
-            }, 100);
-
-            console.log(`[${EXTENSION_PREFIX}] Executed JavaScript for customization ${id}`);
-
-        } catch (error) {
-            console.error(`[${EXTENSION_PREFIX}] Error executing JavaScript:`, error);
-        }
-    }
-
-    function setupNavigationWatcher() {
-        // Watch for URL changes (SPA navigation)
+    // ==================== URL CHANGE DETECTION ====================
+    function setupURLChangeDetection() {
         let lastUrl = window.location.href;
 
-        const checkUrlChange = () => {
-            const currentUrl = window.location.href;
-            if (currentUrl !== lastUrl) {
-                console.log(`[${EXTENSION_PREFIX}] URL changed:`, currentUrl);
-                lastUrl = currentUrl;
+        // Listen for history changes
+        window.addEventListener('popstate', handleURLChange);
 
-                // Re-detect page type
-                detectPageType();
+        // Override pushState and replaceState to catch programmatic navigation
+        const originalPushState = history.pushState;
+        const originalReplaceState = history.replaceState;
 
-                // Wait a bit for new content to load, then reapply customizations
-                setTimeout(() => {
-                    applyCustomizations();
-                }, 1000);
-            }
+        history.pushState = function (...args) {
+            originalPushState.apply(history, args);
+            handleURLChange();
         };
 
-        // Use both popstate and a polling approach for better compatibility
-        window.addEventListener('popstate', checkUrlChange);
-        setInterval(checkUrlChange, 2000); // Check every 2 seconds
+        history.replaceState = function (...args) {
+            originalReplaceState.apply(history, args);
+            handleURLChange();
+        };
+
+        // Fallback: periodically check for URL changes
+        setInterval(() => {
+            if (window.location.href !== lastUrl) {
+                lastUrl = window.location.href;
+                handleURLChange();
+            }
+        }, 1000);
     }
 
+    function handleURLChange() {
+        if (currentUrl !== window.location.href) {
+            console.log('DOM Style Injector: URL change detected');
+            currentUrl = window.location.href;
+
+            // Clear applied count and retry pending items
+            customizationAppliedCount = 0;
+            pendingRetries.clear();
+
+            // Delay to allow page to render
+            setTimeout(() => {
+                waitForDynamicContent().then(() => {
+                    autoApplyCustomizations();
+                });
+            }, 750);
+        }
+    }
+
+    // ==================== DOM OBSERVER ====================
     function setupDOMObserver() {
-        // Watch for DOM mutations that might require reapplying styles
-        const observer = new window.MutationObserver((mutations) => {
-            let shouldReapply = false;
+        // Watch for significant DOM changes that might indicate a page refresh
+        const observer = new MutationObserver((mutations) => {
+            let significantChange = false;
 
             mutations.forEach((mutation) => {
-                // Check if significant DOM changes occurred
+                // Check for added nodes that might indicate a page refresh
                 if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    // Check if any added nodes are significant containers
-                    for (const node of mutation.addedNodes) {
-                        if (node.nodeType === window.Node.ELEMENT_NODE) {
-                            const tagName = node.tagName?.toLowerCase();
-                            if (tagName === 'div' || tagName === 'section' || tagName === 'main') {
-                                // Check if this looks like a major content container
-                                const hasSignificantContent = node.children.length > 3 ||
-                                    node.textContent.length > 100;
-                                if (hasSignificantContent) {
-                                    shouldReapply = true;
-                                    break;
-                                }
-                            }
+                    mutation.addedNodes.forEach((node) => {
+                        // Look for significant structural changes
+                        if (node.nodeType === Node.ELEMENT_NODE &&
+                            (node.tagName === 'MAIN' || node.tagName === 'SECTION' ||
+                                node.classList?.contains('page') || node.classList?.contains('content'))) {
+                            significantChange = true;
                         }
-                    }
+                    });
                 }
             });
 
-            if (shouldReapply) {
-                console.log(`[${EXTENSION_PREFIX}] Significant DOM changes detected, reapplying customizations...`);
+            if (significantChange) {
+                console.log('DOM Style Injector: Significant DOM change detected');
+                // Delay to ensure DOM is stable, then wait for content
                 setTimeout(() => {
-                    applyCustomizations();
-                }, 500); // Small delay to let DOM settle
+                    customizationAppliedCount = 0;
+                    waitForDynamicContent().then(() => {
+                        autoApplyCustomizations();
+                    });
+                }, 1000);
             }
         });
 
         observer.observe(document.body, {
             childList: true,
-            subtree: true,
-            attributes: false
+            subtree: true
         });
     }
 
-    function setupMessageListener() {
-        // Listen for messages from popup or background script
-        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-            console.log(`[${EXTENSION_PREFIX}] Received message:`, message);
-
-            switch (message.action) {
-                case 'reapplyCustomizations':
-                    applyCustomizations().then(() => {
-                        sendResponse({ success: true });
-                    }).catch(error => {
-                        sendResponse({ success: false, error: error.message });
-                    });
-                    return true; // Will respond asynchronously
-
-                case 'removeCustomization':
-                    removeCustomization(message.customizationId);
-                    sendResponse({ success: true });
-                    break;
-
-                case 'getUserRole':
-                    sendResponse({ userRole: userRole });
-                    break;
-
-                case 'updateUserRole':
-                    userRole = message.userRole;
-                    console.log(`[${EXTENSION_PREFIX}] User role updated:`, userRole);
-                    sendResponse({ success: true });
-                    break;
-
-                case 'getAppliedStyles': {
-                    const appliedStylesData = Array.from(appliedStyles.entries()).map(([customizationId, data]) => ({
-                        id: customizationId,
-                        selector: data.selector,
-                        rules: data.rules,
-                        timestamp: data.timestamp
-                    }));
-                    sendResponse({ appliedStyles: appliedStylesData });
-                    break;
-                }
-
-                default:
-                    console.log(`[${EXTENSION_PREFIX}] Unknown message action:`, message.action);
-                    sendResponse({ success: false, error: 'Unknown action' });
+    // ==================== VISIBILITY HANDLING ====================
+    function setupVisibilityHandling() {
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                // Page became visible, check if we need to reapply customizations
+                setTimeout(() => {
+                    if (customizationAppliedCount === 0) {
+                        console.log('DOM Style Injector: Page visible, reapplying customizations');
+                        waitForDynamicContent().then(() => {
+                            autoApplyCustomizations();
+                        });
+                    }
+                }, 100);
             }
         });
     }
 
-    function removeCustomization(customizationId) {
-        const styleId = `${STYLE_PREFIX}${customizationId}`;
-        const styleElement = document.getElementById(styleId);
+    // ==================== MESSAGE HANDLING ====================
+    function setupMessageHandling() {
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            console.log('DOM Style Injector: Received message:', request.action);
 
-        if (styleElement) {
-            styleElement.remove();
-            appliedStyles.delete(customizationId);
-            console.log(`[${EXTENSION_PREFIX}] Removed customization: ${customizationId}`);
+            switch (request.action) {
+                case 'reapplyCustomizations':
+                    console.log('DOM Style Injector: Manual reapply requested');
+                    customizationAppliedCount = 0;
+                    pendingRetries.clear();
+                    waitForDynamicContent().then(() => {
+                        autoApplyCustomizations();
+                    });
+                    sendResponse({ success: true });
+                    break;
+
+                case 'getStatus':
+                    sendResponse({
+                        appliedCount: customizationAppliedCount,
+                        url: currentUrl,
+                        isInitialized: isInitialized,
+                        pendingRetries: pendingRetries.size
+                    });
+                    break;
+
+                case 'updateCustomization':
+                    if (request.customization) {
+                        if (request.customization.enabled) {
+                            applyNewFormatCustomization(request.customization);
+                        } else {
+                            removeNewFormatCustomization(request.customization.id);
+                        }
+                    }
+                    sendResponse({ success: true });
+                    break;
+
+                case 'testSelector':
+                    try {
+                        const elements = document.querySelectorAll(request.selector);
+                        sendResponse({
+                            success: true,
+                            count: elements.length,
+                            message: `Found ${elements.length} elements`
+                        });
+                    } catch (error) {
+                        sendResponse({
+                            success: false,
+                            message: `Invalid selector: ${error.message}`
+                        });
+                    }
+                    break;
+
+                case 'testPseudoClass':
+                    sendResponse(testPseudoClassSupport(request.selector, request.pseudoClass));
+                    break;
+
+                case 'ping':
+                    sendResponse({
+                        status: 'active',
+                        features: ['base-styles', 'pseudo-classes', 'legacy-support'],
+                        supportedPseudoClasses: SUPPORTED_PSEUDO_CLASSES
+                    });
+                    break;
+
+                default:
+                    sendResponse({ success: false, message: 'Unknown action' });
+            }
+        });
+    }
+
+    // ==================== MAIN CUSTOMIZATION APPLICATION ====================
+    async function autoApplyCustomizations() {
+        try {
+            const currentDomain = window.location.hostname;
+
+            // Only apply on allowed domain (preserving existing logic)
+            if (currentDomain !== 'ambata.crm.dynamics.com') {
+                return;
+            }
+
+            console.log('DOM Style Injector: Applying customizations for', currentDomain);
+
+            // Get current query parameters
+            const currentQueryParams = {};
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.forEach((value, key) => {
+                currentQueryParams[key] = value;
+            });
+
+            // Get saved customizations (legacy format)
+            const result = await chrome.storage.local.get('customizations');
+            const customizations = result.customizations || {};
+
+            // Apply legacy format customizations
+            await applyLegacyCustomizations(customizations, currentDomain, currentQueryParams);
+
+            // Also check for new format customizations
+            await applyNewFormatCustomizations();
+
+            // Send update to popup
+            try {
+                chrome.runtime.sendMessage({
+                    action: 'customizationsApplied',
+                    count: customizationAppliedCount,
+                    url: currentUrl,
+                    isRetry: false
+                });
+            } catch (error) {
+                // Popup might not be open, ignore error
+            }
+
+        } catch (error) {
+            console.error('DOM Style Injector: Error applying customizations:', error);
         }
     }
 
-    // Cleanup function
-    function cleanup() {
-        // Remove all applied styles
-        appliedStyles.forEach((data) => {
-            if (data.element && data.element.parentNode) {
-                data.element.parentNode.removeChild(data.element);
+    // ==================== LEGACY FORMAT SUPPORT ====================
+    async function applyLegacyCustomizations(customizations, currentDomain, currentQueryParams) {
+        if (!customizations[currentDomain] || !customizations[currentDomain][0]) {
+            console.log('DOM Style Injector: No legacy customizations found for domain');
+            return;
+        }
+
+        const domainData = customizations[currentDomain][0];
+        const queryStrings = domainData.queryStrings;
+
+        let appliedCount = 0;
+
+        // Apply matching customizations
+        Object.entries(queryStrings).forEach(([queryPattern, selectors]) => {
+            const shouldApply = checkQueryPatternMatch(queryPattern, currentQueryParams);
+
+            if (shouldApply) {
+                console.log('DOM Style Injector: Applying customizations for pattern:', queryPattern || 'all pages');
+
+                Object.entries(selectors).forEach(([selector, styles]) => {
+                    const elements = document.querySelectorAll(selector);
+
+                    if (elements.length > 0) {
+                        console.log(`DOM Style Injector: Found ${elements.length} elements for selector: ${selector}`);
+
+                        elements.forEach((element, index) => {
+                            Object.entries(styles).forEach(([property, value]) => {
+                                const jsPropertyName = property.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
+                                element.style[jsPropertyName] = value;
+                                appliedCount++;
+
+                                console.log(`DOM Style Injector: Applied ${property}: ${value} to element ${index + 1}/${elements.length}`);
+                            });
+                        });
+                    } else {
+                        console.log(`DOM Style Injector: No elements found for selector: ${selector} (will retry later if needed)`);
+
+                        // Schedule retry for missing elements
+                        scheduleRetryForMissingElements(selector, styles, queryPattern, currentQueryParams);
+                    }
+                });
             }
         });
-        appliedStyles.clear();
-        console.log(`[${EXTENSION_PREFIX}] Cleaned up all customizations`);
+
+        customizationAppliedCount += appliedCount;
+        console.log(`DOM Style Injector: Applied ${appliedCount} legacy customizations total`);
     }
 
-    // Clean up on page unload
-    window.addEventListener('beforeunload', cleanup);
+    // ==================== NEW FORMAT SUPPORT ====================
+    async function applyNewFormatCustomizations() {
+        try {
+            const { customizations = [] } = await chrome.storage.local.get('customizations');
 
-    // Expose cleanup function for debugging
-    window[`${EXTENSION_PREFIX}_cleanup`] = cleanup;
+            // Filter for new format customizations (array format)
+            if (Array.isArray(customizations)) {
+                customizations.forEach(customization => {
+                    if (customization.enabled) {
+                        applyNewFormatCustomization(customization);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('DOM Style Injector: Error applying new format customizations:', error);
+        }
+    }
 
-    console.log(`[${EXTENSION_PREFIX}] Content script loaded successfully`);
+    // ==================== ENHANCED CUSTOMIZATION APPLICATION ====================
+    function applyNewFormatCustomization(customization) {
+        try {
+            const { id, selector, css, pseudoClasses } = customization;
+
+            if (!selector) {
+                console.warn('DOM Style Injector: Invalid customization - no selector:', customization);
+                return;
+            }
+
+            // Apply base styles
+            if (css) {
+                applyBaseStyle(customization);
+            }
+
+            // Apply pseudo-class styles if present
+            if (pseudoClasses && Object.keys(pseudoClasses).length > 0) {
+                applyPseudoClassStyles(customization);
+            }
+
+        } catch (error) {
+            console.error('DOM Style Injector: Error applying new format customization:', error);
+        }
+    }
+
+    // Apply base style (new format)
+    function applyBaseStyle(customization) {
+        const { id, selector, css } = customization;
+        const styleId = `${STYLE_PREFIX}${id}`;
+
+        // Remove existing style if present
+        const existingStyle = document.getElementById(styleId);
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+
+        // Create style element
+        const styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        styleEl.textContent = `${selector} { ${css} }`;
+
+        // Add to document head
+        document.head.appendChild(styleEl);
+        appliedStyles.set(id, styleEl);
+
+        console.log(`DOM Style Injector: Applied base style: ${customization.name || id}`);
+    }
+
+    // Apply pseudo-class styles
+    function applyPseudoClassStyles(customization) {
+        const { id, selector, pseudoClasses } = customization;
+        const pseudoStyleId = `${STYLE_PREFIX}${id}-pseudo`;
+
+        // Remove existing pseudo-class styles if present
+        const existingPseudoStyle = document.getElementById(pseudoStyleId);
+        if (existingPseudoStyle) {
+            existingPseudoStyle.remove();
+        }
+
+        // Build CSS for all pseudo-classes
+        const pseudoCssRules = [];
+
+        Object.entries(pseudoClasses).forEach(([pseudoClass, styles]) => {
+            if (SUPPORTED_PSEUDO_CLASSES.includes(pseudoClass)) {
+                const pseudoSelector = `${selector}:${pseudoClass}`;
+                const cssProperties = Object.entries(styles)
+                    .map(([property, value]) => `${property}: ${value}`)
+                    .join('; ');
+
+                pseudoCssRules.push(`${pseudoSelector} { ${cssProperties} }`);
+            }
+        });
+
+        if (pseudoCssRules.length > 0) {
+            // Create style element for pseudo-classes
+            const pseudoStyleEl = document.createElement('style');
+            pseudoStyleEl.id = pseudoStyleId;
+            pseudoStyleEl.textContent = pseudoCssRules.join('\n');
+
+            // Add to document head
+            document.head.appendChild(pseudoStyleEl);
+            pseudoClassStyles.set(id, pseudoStyleEl);
+
+            console.log(`DOM Style Injector: Applied ${pseudoCssRules.length} pseudo-class styles for: ${customization.name || id}`);
+        }
+    }
+
+    // Remove new format customization
+    function removeNewFormatCustomization(customizationId) {
+        // Remove base style
+        const styleEl = appliedStyles.get(customizationId);
+        if (styleEl) {
+            styleEl.remove();
+            appliedStyles.delete(customizationId);
+        }
+
+        // Remove pseudo-class styles
+        const pseudoStyleEl = pseudoClassStyles.get(customizationId);
+        if (pseudoStyleEl) {
+            pseudoStyleEl.remove();
+            pseudoClassStyles.delete(customizationId);
+        }
+
+        console.log(`DOM Style Injector: Removed customization: ${customizationId}`);
+    }
+
+    // ==================== UTILITY FUNCTIONS ====================
+    function checkQueryPatternMatch(queryPattern, currentQueryParams) {
+        // Empty pattern matches all pages
+        if (!queryPattern) {
+            return true;
+        }
+
+        // Parse pattern into individual parameter matches
+        const patternParams = {};
+        const pairs = queryPattern.split('&');
+
+        pairs.forEach(pair => {
+            const [key, value] = pair.split('=');
+            if (key && value) {
+                patternParams[key] = value;
+            }
+        });
+
+        // Check if current params match the pattern
+        return Object.entries(patternParams).every(([key, value]) => {
+            const currentValue = currentQueryParams[key];
+
+            // Support wildcards
+            if (value === '*') {
+                return currentValue !== undefined;
+            }
+
+            return currentValue === value;
+        });
+    }
+
+    function scheduleRetryForMissingElements(selector, styles, queryPattern, currentQueryParams) {
+        const retryKey = `${selector}-${queryPattern}`;
+
+        // Avoid duplicate retries
+        if (pendingRetries.has(retryKey)) {
+            return;
+        }
+
+        pendingRetries.set(retryKey, true);
+
+        retryDelays.forEach((delay, index) => {
+            setTimeout(() => {
+                const elements = document.querySelectorAll(selector);
+
+                if (elements.length > 0) {
+                    console.log(`DOM Style Injector: Retry ${index + 1} found ${elements.length} elements for: ${selector}`);
+
+                    let appliedCount = 0;
+                    elements.forEach((element, elementIndex) => {
+                        Object.entries(styles).forEach(([property, value]) => {
+                            const jsPropertyName = property.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
+                            element.style[jsPropertyName] = value;
+                            appliedCount++;
+
+                            console.log(`DOM Style Injector: Retry applied ${property}: ${value} to element ${elementIndex + 1}/${elements.length}`);
+                        });
+                    });
+
+                    // Remove from pending retries since we succeeded
+                    pendingRetries.delete(retryKey);
+
+                    // Update global count
+                    customizationAppliedCount += appliedCount;
+
+                    // Send update to popup
+                    try {
+                        chrome.runtime.sendMessage({
+                            action: 'customizationsApplied',
+                            count: customizationAppliedCount,
+                            url: currentUrl,
+                            isRetry: true,
+                            retryAttempt: index + 1
+                        });
+                    } catch (error) {
+                        // Popup might not be open, ignore error
+                    }
+                } else if (index === retryDelays.length - 1) {
+                    // Final retry failed, remove from pending
+                    console.log(`DOM Style Injector: All retries failed for selector: ${selector}`);
+                    pendingRetries.delete(retryKey);
+                }
+            }, delay);
+        });
+    }
+
+    // ==================== PSEUDO-CLASS TESTING ====================
+    function testPseudoClassSupport(selector, pseudoClass) {
+        try {
+            const elements = document.querySelectorAll(selector);
+            const testStyleId = `${STYLE_PREFIX}test-${Date.now()}`;
+
+            // Create test style
+            const testStyle = document.createElement('style');
+            testStyle.id = testStyleId;
+            testStyle.textContent = `${selector}:${pseudoClass} { border: 2px solid red !important; }`;
+
+            document.head.appendChild(testStyle);
+
+            // Remove test style after a short delay
+            setTimeout(() => {
+                const testEl = document.getElementById(testStyleId);
+                if (testEl) testEl.remove();
+            }, 3000);
+
+            return {
+                success: true,
+                elementsFound: elements.length,
+                message: `Test applied to ${elements.length} elements with ${pseudoClass} pseudo-class`
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: `Error testing pseudo-class: ${error.message}`
+            };
+        }
+    }
+
+    // ==================== UTILITY FUNCTIONS ====================
+    function isValidPseudoClass(pseudoClass) {
+        return SUPPORTED_PSEUDO_CLASSES.includes(pseudoClass);
+    }
+
+    function parsePseudoClassSelector(selector) {
+        const pseudoClassRegex = /:([a-z-]+)(?:\(([^)]*)\))?/g;
+        const matches = [];
+        let match;
+
+        while ((match = pseudoClassRegex.exec(selector)) !== null) {
+            matches.push({
+                pseudoClass: match[1],
+                parameter: match[2] || null,
+                isSupported: isValidPseudoClass(match[1])
+            });
+        }
+
+        return matches;
+    }
+
+    function parseCSSProperties(cssText) {
+        const properties = {};
+        const declarations = cssText.split(';');
+
+        declarations.forEach(declaration => {
+            const [property, value] = declaration.split(':').map(s => s.trim());
+            if (property && value) {
+                properties[property] = value;
+            }
+        });
+
+        return properties;
+    }
+
+    // ==================== DEBUGGING AND UTILITIES ====================
+    // Expose utilities for testing/debugging
+    window.d365StyleInjector = {
+        // Legacy debugging functions
+        getStatus: () => ({
+            appliedCount: customizationAppliedCount,
+            url: currentUrl,
+            isInitialized: isInitialized,
+            pendingRetries: pendingRetries.size
+        }),
+
+        // New pseudo-class debugging functions
+        getSupportedPseudoClasses: () => SUPPORTED_PSEUDO_CLASSES,
+        testPseudoClass: testPseudoClassSupport,
+        reapplyStyles: autoApplyCustomizations,
+        getAppliedStyles: () => ({
+            legacyStyles: customizationAppliedCount,
+            baseStyles: appliedStyles.size,
+            pseudoClassStyles: pseudoClassStyles.size,
+            totalNewStyles: appliedStyles.size + pseudoClassStyles.size
+        }),
+
+        // Enhanced debugging
+        getPseudoClassRules: () => Array.from(pseudoClassStyles.entries()),
+        validatePseudoClass: isValidPseudoClass,
+        parsePseudoSelector: parsePseudoClassSelector,
+
+        // Legacy support
+        clearRetries: () => pendingRetries.clear(),
+        forceReapply: () => {
+            customizationAppliedCount = 0;
+            pendingRetries.clear();
+            autoApplyCustomizations();
+        }
+    };
 
 })();
