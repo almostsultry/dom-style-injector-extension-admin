@@ -278,6 +278,178 @@
                 <small>Export or import style customization rules</small>
             </section>
 
+            <!-- AI Integration Section -->
+            <section class="config-section" id="ai-integration-section">
+                <h2>AI Integration</h2>
+                <p class="section-description">Configure AI services for CSS generation, documentation, and improvements</p>
+                
+                <!-- AI Providers -->
+                <h3>AI Service Providers</h3>
+                <div class="ai-providers">
+                    <!-- OpenAI/ChatGPT -->
+                    <div class="ai-provider-card">
+                        <div class="provider-header">
+                            <h4>ChatGPT (OpenAI)</h4>
+                            <span class="provider-status" id="openai-status">Not Configured</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="openai-key">API Key</label>
+                            <div class="api-key-group">
+                                <input type="password" id="openai-key" class="form-input api-key-input" placeholder="sk-...">
+                                <button class="btn btn-sm" onclick="toggleKeyVisibility('openai-key')">👁</button>
+                            </div>
+                            <small>Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a></small>
+                        </div>
+                        <div class="provider-actions">
+                            <button id="save-openai" class="btn btn-primary btn-sm">Save</button>
+                            <button id="test-openai" class="btn btn-secondary btn-sm">Test</button>
+                            <button id="remove-openai" class="btn btn-secondary btn-sm">Remove</button>
+                        </div>
+                    </div>
+
+                    <!-- Anthropic/Claude -->
+                    <div class="ai-provider-card">
+                        <div class="provider-header">
+                            <h4>Claude (Anthropic)</h4>
+                            <span class="provider-status" id="anthropic-status">Not Configured</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="anthropic-key">API Key</label>
+                            <div class="api-key-group">
+                                <input type="password" id="anthropic-key" class="form-input api-key-input" placeholder="sk-ant-...">
+                                <button class="btn btn-sm" onclick="toggleKeyVisibility('anthropic-key')">👁</button>
+                            </div>
+                            <small>Get your API key from <a href="https://console.anthropic.com/account/keys" target="_blank">Anthropic Console</a></small>
+                        </div>
+                        <div class="provider-actions">
+                            <button id="save-anthropic" class="btn btn-primary btn-sm">Save</button>
+                            <button id="test-anthropic" class="btn btn-secondary btn-sm">Test</button>
+                            <button id="remove-anthropic" class="btn btn-secondary btn-sm">Remove</button>
+                        </div>
+                    </div>
+
+                    <!-- Microsoft Copilot -->
+                    <div class="ai-provider-card">
+                        <div class="provider-header">
+                            <h4>Copilot (Microsoft Azure)</h4>
+                            <span class="provider-status" id="microsoft-status">Not Configured</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="azure-endpoint">Azure OpenAI Endpoint</label>
+                            <input type="url" id="azure-endpoint" class="form-input" placeholder="https://your-resource.openai.azure.com">
+                            <small>Your Azure OpenAI resource endpoint</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="microsoft-key">API Key</label>
+                            <div class="api-key-group">
+                                <input type="password" id="microsoft-key" class="form-input api-key-input" placeholder="Your Azure API key">
+                                <button class="btn btn-sm" onclick="toggleKeyVisibility('microsoft-key')">👁</button>
+                            </div>
+                            <small>Get from Azure Portal > Your OpenAI Resource > Keys and Endpoint</small>
+                        </div>
+                        <div class="provider-actions">
+                            <button id="save-microsoft" class="btn btn-primary btn-sm">Save</button>
+                            <button id="test-microsoft" class="btn btn-secondary btn-sm">Test</button>
+                            <button id="remove-microsoft" class="btn btn-secondary btn-sm">Remove</button>
+                        </div>
+                    </div>
+
+                    <!-- Google Gemini -->
+                    <div class="ai-provider-card">
+                        <div class="provider-header">
+                            <h4>Gemini (Google)</h4>
+                            <span class="provider-status" id="google-status">Not Configured</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="google-key">API Key</label>
+                            <div class="api-key-group">
+                                <input type="password" id="google-key" class="form-input api-key-input" placeholder="Your Google AI API key">
+                                <button class="btn btn-sm" onclick="toggleKeyVisibility('google-key')">👁</button>
+                            </div>
+                            <small>Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></small>
+                        </div>
+                        <div class="provider-actions">
+                            <button id="save-google" class="btn btn-primary btn-sm">Save</button>
+                            <button id="test-google" class="btn btn-secondary btn-sm">Test</button>
+                            <button id="remove-google" class="btn btn-secondary btn-sm">Remove</button>
+                        </div>
+                    </div>
+
+                    <!-- Grok -->
+                    <div class="ai-provider-card">
+                        <div class="provider-header">
+                            <h4>Grok (xAI)</h4>
+                            <span class="provider-status" id="grok-status">Not Configured</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="grok-key">API Key</label>
+                            <div class="api-key-group">
+                                <input type="password" id="grok-key" class="form-input api-key-input" placeholder="sk-...">
+                                <button class="btn btn-sm" onclick="toggleKeyVisibility('grok-key')">👁</button>
+                            </div>
+                            <small>Get your API key from <a href="https://x.ai/api" target="_blank">xAI Platform</a></small>
+                        </div>
+                        <div class="provider-actions">
+                            <button id="save-grok" class="btn btn-primary btn-sm">Save</button>
+                            <button id="test-grok" class="btn btn-secondary btn-sm">Test</button>
+                            <button id="remove-grok" class="btn btn-secondary btn-sm">Remove</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Features Settings -->
+                <h3>AI Features</h3>
+                <div class="form-group">
+                    <label for="default-ai-provider">Default AI Provider</label>
+                    <select id="default-ai-provider" class="form-select">
+                        <option value="">Select a provider</option>
+                        <option value="openai">ChatGPT</option>
+                        <option value="anthropic">Claude</option>
+                        <option value="microsoft">Copilot</option>
+                        <option value="google">Gemini</option>
+                        <option value="grok">Grok</option>
+                    </select>
+                    <small>The AI provider to use by default for all features</small>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="ai-css-generation">
+                        Enable CSS generation from natural language
+                    </label>
+                    <small>Allow users to describe styles in plain English</small>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="ai-improvements">
+                        Enable AI-powered improvement suggestions
+                    </label>
+                    <small>Get suggestions for optimizing CSS rules</small>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="ai-documentation">
+                        Enable automatic documentation generation
+                    </label>
+                    <small>Generate documentation for customization rules</small>
+                </div>
+
+                <!-- Secure Backend Configuration -->
+                <h3>Secure API Key Storage</h3>
+                <div class="form-group">
+                    <label for="secure-backend-url">Secure Backend URL</label>
+                    <input type="url" id="secure-backend-url" class="form-input" placeholder="https://your-backend.com">
+                    <small>Optional: URL of your secure backend for API key storage</small>
+                </div>
+
+                <div class="info-box">
+                    <h3>Security Note</h3>
+                    <p>API keys are stored locally with basic encryption. For production use, we recommend setting up the secure backend service for proper key management.</p>
+                </div>
+            </section>
+
             <!-- Branding Section -->
             <section class="config-section" id="branding-section">
                 <h2>Custom Branding</h2>
@@ -409,6 +581,7 @@
     </div>
 
     <script src="../scripts/branding-manager.js"></script>
+    <script src="../scripts/ai-integration-manager.js"></script>
     <script src="options.js"></script>
     <script src="../scripts/dev-mode-indicator.js"></script>
 </body>

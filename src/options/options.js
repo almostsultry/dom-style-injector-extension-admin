@@ -1255,3 +1255,286 @@ if (document.readyState === 'loading') {
 } else {
     initializeBrandingManager();
 }
+
+// =============================================================================
+// AI INTEGRATION FUNCTIONALITY
+// =============================================================================
+let aiIntegrationManager = null;
+
+// AI provider elements
+const aiProviders = ['openai', 'anthropic', 'microsoft', 'google', 'grok'];
+const aiElements = {};
+
+// Initialize AI elements
+function initializeAIElements() {
+    aiProviders.forEach(provider => {
+        aiElements[provider] = {
+            keyInput: document.getElementById(`${provider}-key`),
+            status: document.getElementById(`${provider}-status`),
+            saveBtn: document.getElementById(`save-${provider}`),
+            testBtn: document.getElementById(`test-${provider}`),
+            removeBtn: document.getElementById(`remove-${provider}`)
+        };
+    });
+    
+    // Additional elements
+    aiElements.azureEndpoint = document.getElementById('azure-endpoint');
+    aiElements.defaultProvider = document.getElementById('default-ai-provider');
+    aiElements.aiCssGeneration = document.getElementById('ai-css-generation');
+    aiElements.aiImprovements = document.getElementById('ai-improvements');
+    aiElements.aiDocumentation = document.getElementById('ai-documentation');
+    aiElements.secureBackendUrl = document.getElementById('secure-backend-url');
+}
+
+// Initialize AI integration manager
+async function initializeAIIntegrationManager() {
+    try {
+        // Check if AIIntegrationManager is available
+        if (typeof AIIntegrationManager === 'undefined') {
+            console.warn('AIIntegrationManager not found. AI features will be disabled.');
+            return;
+        }
+        
+        aiIntegrationManager = new AIIntegrationManager();
+        await aiIntegrationManager.initialize();
+        
+        // Initialize UI elements
+        initializeAIElements();
+        
+        // Load AI settings
+        await loadAISettings();
+        
+        // Setup AI event listeners
+        setupAIEventListeners();
+        
+        // Update provider statuses
+        updateProviderStatuses();
+        
+        console.log('AI Integration manager initialized');
+    } catch (error) {
+        console.error('Failed to initialize AI integration manager:', error);
+    }
+}
+
+// Load AI settings
+async function loadAISettings() {
+    try {
+        const settings = await chrome.storage.sync.get([
+            'defaultAIProvider',
+            'aiCssGeneration',
+            'aiImprovements',
+            'aiDocumentation',
+            'secureBackendUrl',
+            'azureOpenAIEndpoint'
+        ]);
+        
+        if (settings.defaultAIProvider) {
+            aiElements.defaultProvider.value = settings.defaultAIProvider;
+        }
+        
+        if (settings.azureOpenAIEndpoint) {
+            aiElements.azureEndpoint.value = settings.azureOpenAIEndpoint;
+        }
+        
+        if (settings.secureBackendUrl) {
+            aiElements.secureBackendUrl.value = settings.secureBackendUrl;
+        }
+        
+        aiElements.aiCssGeneration.checked = settings.aiCssGeneration ?? true;
+        aiElements.aiImprovements.checked = settings.aiImprovements ?? true;
+        aiElements.aiDocumentation.checked = settings.aiDocumentation ?? true;
+        
+    } catch (error) {
+        console.error('Failed to load AI settings:', error);
+    }
+}
+
+// Setup AI event listeners
+function setupAIEventListeners() {
+    // Provider-specific listeners
+    aiProviders.forEach(provider => {
+        const elements = aiElements[provider];
+        
+        elements.saveBtn.addEventListener('click', () => saveAPIKey(provider));
+        elements.testBtn.addEventListener('click', () => testAPIConnection(provider));
+        elements.removeBtn.addEventListener('click', () => removeAPIKey(provider));
+    });
+    
+    // Settings listeners
+    aiElements.defaultProvider.addEventListener('change', saveAISettings);
+    aiElements.aiCssGeneration.addEventListener('change', saveAISettings);
+    aiElements.aiImprovements.addEventListener('change', saveAISettings);
+    aiElements.aiDocumentation.addEventListener('change', saveAISettings);
+    aiElements.secureBackendUrl.addEventListener('change', saveAISettings);
+    aiElements.azureEndpoint.addEventListener('change', saveAISettings);
+}
+
+// Save API key
+async function saveAPIKey(provider) {
+    if (!aiIntegrationManager) return;
+    
+    const elements = aiElements[provider];
+    const apiKey = elements.keyInput.value.trim();
+    
+    if (!apiKey) {
+        showStatus('Please enter an API key', 'error');
+        return;
+    }
+    
+    // Special handling for Microsoft/Azure
+    if (provider === 'microsoft') {
+        const azureEndpoint = aiElements.azureEndpoint.value.trim();
+        if (!azureEndpoint) {
+            showStatus('Please enter Azure OpenAI endpoint', 'error');
+            return;
+        }
+    }
+    
+    try {
+        elements.saveBtn.disabled = true;
+        elements.saveBtn.textContent = 'Saving...';
+        
+        const result = await aiIntegrationManager.saveAPIKey(provider, apiKey);
+        
+        if (result.success) {
+            showStatus(`${aiIntegrationManager.providers[provider].name} API key saved`, 'success');
+            elements.keyInput.value = ''; // Clear the input
+            updateProviderStatus(provider, true);
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        console.error('Failed to save API key:', error);
+        showStatus(`Failed to save API key: ${error.message}`, 'error');
+    } finally {
+        elements.saveBtn.disabled = false;
+        elements.saveBtn.textContent = 'Save';
+    }
+}
+
+// Test API connection
+async function testAPIConnection(provider) {
+    if (!aiIntegrationManager) return;
+    
+    const elements = aiElements[provider];
+    
+    try {
+        elements.testBtn.disabled = true;
+        elements.testBtn.textContent = 'Testing...';
+        
+        const result = await aiIntegrationManager.testConnection(provider);
+        
+        if (result.success) {
+            showStatus(`${aiIntegrationManager.providers[provider].name} connection successful`, 'success');
+            updateProviderStatus(provider, true);
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        showStatus(`Connection test failed: ${error.message}`, 'error');
+        updateProviderStatus(provider, false, true);
+    } finally {
+        elements.testBtn.disabled = false;
+        elements.testBtn.textContent = 'Test';
+    }
+}
+
+// Remove API key
+async function removeAPIKey(provider) {
+    if (!aiIntegrationManager) return;
+    
+    const confirmed = await showConfirmDialog(
+        'Remove API Key?',
+        `Are you sure you want to remove the ${aiIntegrationManager.providers[provider].name} API key?`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        const result = await aiIntegrationManager.deleteAPIKey(provider);
+        
+        if (result.success) {
+            showStatus(`${aiIntegrationManager.providers[provider].name} API key removed`, 'success');
+            updateProviderStatus(provider, false);
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        console.error('Failed to remove API key:', error);
+        showStatus(`Failed to remove API key: ${error.message}`, 'error');
+    }
+}
+
+// Update provider status
+function updateProviderStatus(provider, configured, error = false) {
+    const statusEl = aiElements[provider].status;
+    
+    if (error) {
+        statusEl.textContent = 'Error';
+        statusEl.className = 'provider-status error';
+    } else if (configured) {
+        statusEl.textContent = 'Configured';
+        statusEl.className = 'provider-status configured';
+    } else {
+        statusEl.textContent = 'Not Configured';
+        statusEl.className = 'provider-status';
+    }
+}
+
+// Update all provider statuses
+function updateProviderStatuses() {
+    if (!aiIntegrationManager) return;
+    
+    const configuredProviders = aiIntegrationManager.getConfiguredProviders();
+    
+    aiProviders.forEach(provider => {
+        updateProviderStatus(provider, configuredProviders.includes(provider));
+    });
+}
+
+// Save AI settings
+async function saveAISettings() {
+    try {
+        const settings = {
+            defaultAIProvider: aiElements.defaultProvider.value,
+            aiCssGeneration: aiElements.aiCssGeneration.checked,
+            aiImprovements: aiElements.aiImprovements.checked,
+            aiDocumentation: aiElements.aiDocumentation.checked,
+            secureBackendUrl: aiElements.secureBackendUrl.value.trim(),
+            azureOpenAIEndpoint: aiElements.azureEndpoint.value.trim()
+        };
+        
+        await chrome.storage.sync.set(settings);
+        
+        // Update AI manager with new backend URL if changed
+        if (aiIntegrationManager && settings.secureBackendUrl) {
+            aiIntegrationManager.secureBackendUrl = settings.secureBackendUrl;
+        }
+        
+    } catch (error) {
+        console.error('Failed to save AI settings:', error);
+        showStatus('Failed to save AI settings', 'error');
+    }
+}
+
+// Toggle API key visibility
+window.toggleKeyVisibility = function(inputId) {
+    const input = document.getElementById(inputId);
+    const button = input.nextElementSibling;
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        button.textContent = '🙈';
+    } else {
+        input.type = 'password';
+        button.textContent = '👁';
+    }
+};
+
+// Initialize AI integration when DOM is loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAIIntegrationManager);
+} else {
+    initializeAIIntegrationManager();
+}

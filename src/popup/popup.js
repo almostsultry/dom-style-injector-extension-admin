@@ -681,6 +681,9 @@ async function initializePopup() {
         
         // Initialize branding
         await initializeBranding();
+        
+        // Initialize AI integration
+        await initializeAIIntegration();
         // Check license first
         const licenseCheck = await chrome.runtime.sendMessage({ action: 'checkLicense' });
         
@@ -3342,3 +3345,400 @@ async function initializeBranding() {
         console.error('Failed to initialize branding:', error);
     }
 }
+
+// =============================================================================
+// AI INTEGRATION FUNCTIONALITY
+// =============================================================================
+let aiIntegrationManager = null;
+let aiAssistDialog = null;
+
+async function initializeAIIntegration() {
+    try {
+        // Check if AIIntegrationManager is available
+        if (typeof AIIntegrationManager === 'undefined') {
+            console.warn('AIIntegrationManager not found. AI features will be disabled.');
+            return;
+        }
+        
+        aiIntegrationManager = new AIIntegrationManager();
+        await aiIntegrationManager.initialize();
+        
+        // Setup AI assist button
+        const aiAssistBtn = document.getElementById('ai-assist-btn');
+        if (aiAssistBtn) {
+            aiAssistBtn.addEventListener('click', showAIAssistDialog);
+            
+            // Check if any AI provider is configured
+            const configuredProviders = aiIntegrationManager.getConfiguredProviders();
+            if (configuredProviders.length === 0) {
+                aiAssistBtn.disabled = true;
+                aiAssistBtn.title = 'No AI providers configured. Please configure in settings.';
+            }
+        }
+        
+        console.log('AI Integration initialized in popup');
+    } catch (error) {
+        console.error('Failed to initialize AI integration:', error);
+    }
+}
+
+// Show AI assist dialog
+async function showAIAssistDialog() {
+    if (!aiIntegrationManager) return;
+    
+    // Check AI features are enabled
+    const settings = await chrome.storage.sync.get([
+        'aiCssGeneration',
+        'aiImprovements',
+        'aiDocumentation',
+        'defaultAIProvider'
+    ]);
+    
+    if (!settings.aiCssGeneration && !settings.aiImprovements && !settings.aiDocumentation) {
+        showNotification('AI features are disabled. Enable them in settings.', 'warning');
+        return;
+    }
+    
+    // Create AI assist dialog
+    aiAssistDialog = document.createElement('div');
+    aiAssistDialog.className = 'ai-assist-dialog';
+    aiAssistDialog.innerHTML = `
+        <div class="ai-assist-content">
+            <h3>AI Assistant</h3>
+            <div class="ai-options">
+                ${settings.aiCssGeneration ? `
+                <button class="ai-option" data-action="generate">
+                    <span class="ai-icon">✨</span>
+                    <span class="ai-label">Generate CSS</span>
+                    <small>Describe styles in plain English</small>
+                </button>
+                ` : ''}
+                ${settings.aiImprovements ? `
+                <button class="ai-option" data-action="improve">
+                    <span class="ai-icon">💡</span>
+                    <span class="ai-label">Improve Rule</span>
+                    <small>Get optimization suggestions</small>
+                </button>
+                ` : ''}
+                ${settings.aiDocumentation ? `
+                <button class="ai-option" data-action="document">
+                    <span class="ai-icon">📝</span>
+                    <span class="ai-label">Generate Docs</span>
+                    <small>Create documentation for rules</small>
+                </button>
+                ` : ''}
+            </div>
+            <button class="close-btn" onclick="closeAIAssistDialog()">✕</button>
+        </div>
+    `;
+    
+    document.body.appendChild(aiAssistDialog);
+    
+    // Add event listeners
+    aiAssistDialog.querySelectorAll('.ai-option').forEach(btn => {
+        btn.addEventListener('click', handleAIAction);
+    });
+}
+
+// Handle AI action
+async function handleAIAction(e) {
+    const action = e.currentTarget.dataset.action;
+    const defaultProvider = (await chrome.storage.sync.get('defaultAIProvider')).defaultAIProvider || 'openai';
+    
+    closeAIAssistDialog();
+    
+    switch (action) {
+        case 'generate':
+            showAIGenerateDialog(defaultProvider);
+            break;
+        case 'improve':
+            await showAIImproveDialog(defaultProvider);
+            break;
+        case 'document':
+            await generateDocumentation(defaultProvider);
+            break;
+    }
+}
+
+// Show AI generate CSS dialog
+function showAIGenerateDialog(provider) {
+    const dialog = document.createElement('div');
+    dialog.className = 'ai-generate-dialog';
+    dialog.innerHTML = `
+        <div class="ai-generate-content">
+            <h3>Generate CSS with AI</h3>
+            <div class="form-group">
+                <label>Describe the styles you want:</label>
+                <textarea id="ai-description" rows="4" placeholder="e.g., Make all buttons blue with rounded corners and a subtle shadow"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Target Element (optional):</label>
+                <input type="text" id="ai-target" placeholder="e.g., button, .submit-btn">
+            </div>
+            <div class="ai-actions">
+                <button class="btn btn-primary" onclick="generateCSSWithAI('${provider}')">Generate</button>
+                <button class="btn btn-secondary" onclick="this.closest('.ai-generate-dialog').remove()">Cancel</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(dialog);
+    document.getElementById('ai-description').focus();
+}
+
+// Generate CSS with AI
+window.generateCSSWithAI = async function(provider) {
+    const description = document.getElementById('ai-description').value.trim();
+    const targetElement = document.getElementById('ai-target').value.trim() || '.class-name';
+    
+    if (!description) {
+        showNotification('Please describe the styles you want', 'error');
+        return;
+    }
+    
+    try {
+        showNotification('Generating CSS...', 'info');
+        document.querySelector('.ai-generate-dialog').remove();
+        
+        const result = await aiIntegrationManager.generateCSS(description, targetElement, provider);
+        
+        // Pre-fill the form with generated CSS
+        if (elements.ruleName) elements.ruleName.value = `AI Generated: ${description.substring(0, 30)}...`;
+        if (elements.selector) elements.selector.value = targetElement;
+        if (elements.styleTextarea) elements.styleTextarea.value = result.css;
+        
+        if (!elements.createForm?.classList.contains('active')) {
+            toggleCreateForm();
+        }
+        
+        showNotification('CSS generated successfully!', 'success');
+    } catch (error) {
+        console.error('AI generation error:', error);
+        showNotification(`Failed to generate CSS: ${error.message}`, 'error');
+    }
+};
+
+// Show AI improve dialog
+async function showAIImproveDialog(provider) {
+    // Get current form data
+    const formData = collectFormData();
+    
+    if (!formData.selector || Object.keys(formData.styles).length === 0) {
+        showNotification('Please create a rule first before requesting improvements', 'warning');
+        return;
+    }
+    
+    try {
+        showNotification('Analyzing rule for improvements...', 'info');
+        
+        const customization = {
+            selector: formData.selector,
+            styles: formData.styles,
+            pseudoClasses: formData.pseudoClasses
+        };
+        
+        const result = await aiIntegrationManager.suggestImprovements(customization, provider);
+        
+        // Show suggestions dialog
+        showImprovementSuggestions(result.suggestions);
+    } catch (error) {
+        console.error('AI improvement error:', error);
+        showNotification(`Failed to get improvements: ${error.message}`, 'error');
+    }
+}
+
+// Show improvement suggestions
+function showImprovementSuggestions(suggestions) {
+    const dialog = document.createElement('div');
+    dialog.className = 'ai-suggestions-dialog';
+    dialog.innerHTML = `
+        <div class="ai-suggestions-content">
+            <h3>AI Improvement Suggestions</h3>
+            <div class="suggestions-list">
+                ${suggestions.map((s, i) => `
+                    <div class="suggestion-item">
+                        <h4>${s.title}</h4>
+                        <p>${s.description}</p>
+                        ${s.code ? `<pre>${s.code}</pre>` : ''}
+                        <button class="btn btn-sm btn-primary" onclick="applySuggestion(${i})">Apply</button>
+                    </div>
+                `).join('')}
+            </div>
+            <button class="btn btn-secondary" onclick="this.closest('.ai-suggestions-dialog').remove()">Close</button>
+        </div>
+    `;
+    
+    document.body.appendChild(dialog);
+    
+    // Store suggestions for apply function
+    window.aiSuggestions = suggestions;
+}
+
+// Apply suggestion
+window.applySuggestion = function(index) {
+    const suggestion = window.aiSuggestions[index];
+    if (suggestion && suggestion.code) {
+        // Parse and apply the CSS
+        const cssText = suggestion.code.trim();
+        if (elements.styleTextarea) {
+            elements.styleTextarea.value = cssText;
+        }
+        
+        document.querySelector('.ai-suggestions-dialog').remove();
+        showNotification('Suggestion applied!', 'success');
+    }
+};
+
+// Generate documentation
+async function generateDocumentation(provider) {
+    try {
+        // Get all customizations
+        const { customizations = [] } = await chrome.storage.local.get('customizations');
+        
+        if (customizations.length === 0) {
+            showNotification('No customizations to document', 'warning');
+            return;
+        }
+        
+        showNotification('Generating documentation...', 'info');
+        
+        const result = await aiIntegrationManager.generateDocumentation(customizations, provider);
+        
+        // Create download link
+        const blob = new Blob([result.documentation], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dom-style-documentation-${Date.now()}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        showNotification('Documentation generated and downloaded!', 'success');
+    } catch (error) {
+        console.error('Documentation generation error:', error);
+        showNotification(`Failed to generate documentation: ${error.message}`, 'error');
+    }
+}
+
+// Close AI assist dialog
+window.closeAIAssistDialog = function() {
+    if (aiAssistDialog) {
+        aiAssistDialog.remove();
+        aiAssistDialog = null;
+    }
+};
+
+// Add CSS for AI dialogs
+const aiStyles = document.createElement('style');
+aiStyles.textContent = `
+.ai-assist-dialog,
+.ai-generate-dialog,
+.ai-suggestions-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.ai-assist-content,
+.ai-generate-content,
+.ai-suggestions-content {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.ai-options {
+    display: grid;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.ai-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: #f8f9fa;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ai-option:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+}
+
+.ai-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.ai-label {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.ai-option small {
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #6c757d;
+}
+
+.suggestions-list {
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 20px 0;
+}
+
+.suggestion-item {
+    border: 1px solid #e9ecef;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+}
+
+.suggestion-item h4 {
+    margin: 0 0 10px 0;
+    color: #007acc;
+}
+
+.suggestion-item pre {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 12px;
+}
+
+.ai-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+}
+`;
+document.head.appendChild(aiStyles);
