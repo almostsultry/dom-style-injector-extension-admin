@@ -293,6 +293,31 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
                     <span id="rule-count" class="rule-count">0 rules</span>
                 </div>
 
+                <!-- NEW: Search and Filter Bar -->
+                <div class="search-filter-bar">
+                    <div class="search-container">
+                        <input type="text" id="search-input" class="search-input" placeholder="Search rules...">
+                        <button id="clear-search" class="btn-icon" style="display: none;" aria-label="Clear search">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="filter-controls">
+                        <select id="filter-status" class="filter-select">
+                            <option value="all">All Status</option>
+                            <option value="enabled">Enabled</option>
+                            <option value="disabled">Disabled</option>
+                        </select>
+                        <select id="filter-sort" class="filter-select">
+                            <option value="modified-desc">Recent First</option>
+                            <option value="modified-asc">Oldest First</option>
+                            <option value="name-asc">Name (A-Z)</option>
+                            <option value="name-desc">Name (Z-A)</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="sync-info">
                     <span id="sync-status" class="sync-status">Never synced</span>
                     <button id="sync-rules" class="btn btn-secondary btn-sm">Sync</button>
@@ -312,10 +337,82 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
                     <p class="text-muted">Create your first rule to get started</p>
                 </div>
             </div>
+
+            <!-- NEW: Export/Import Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Export / Import</h2>
+                    <div class="export-import-actions">
+                        <button id="export-btn" class="btn btn-secondary btn-sm">Export</button>
+                        <button id="import-btn" class="btn btn-secondary btn-sm">Import</button>
+                    </div>
+                </div>
+
+                <!-- Export Options (hidden by default) -->
+                <div id="export-options" class="export-import-panel" style="display: none;">
+                    <h3>Export Options</h3>
+                    <div class="form-group">
+                        <label class="form-label">Format</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="export-format" value="json" checked>
+                                <span>JSON (Recommended)</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="export-format" value="csv">
+                                <span>CSV (Excel compatible)</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="export-metadata" checked>
+                            <span>Include metadata (export date, user, version)</span>
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button id="do-export" class="btn btn-primary">Download</button>
+                        <button id="cancel-export" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- Import Options (hidden by default) -->
+                <div id="import-options" class="export-import-panel" style="display: none;">
+                    <h3>Import Options</h3>
+                    <div class="form-group">
+                        <label class="form-label">Merge Strategy</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="merge-strategy" value="merge" checked>
+                                <span>Merge (Update existing, add new)</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="merge-strategy" value="replace">
+                                <span>Replace (Delete all, import new)</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="merge-strategy" value="skip">
+                                <span>Skip duplicates (Only add new)</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="validate-import" checked>
+                            <span>Validate rules before importing</span>
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button id="select-file" class="btn btn-primary">Select File</button>
+                        <button id="cancel-import" class="btn btn-secondary">Cancel</button>
+                    </div>
+                    <div id="import-status" class="import-status" style="display: none;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- PRESERVED: User view (unchanged from original) -->
+    <!-- ENHANCED: User view with improved features -->
     <div id="user-view" class="view">
         <div class="header">
             <h1>DOM Style Injector</h1>
@@ -324,26 +421,67 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
 
         <div class="content">
             <div class="section">
-                <p>Custom enterprise styles are being applied.</p>
-                <p>Please contact your System Customizer to request changes.</p>
+                <div class="user-info-banner">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="20" height="20">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+                        <path d="M2 17L12 22L22 17" />
+                        <path d="M2 12L12 17L22 12" />
+                    </svg>
+                    <div>
+                        <p class="info-title">Enterprise styles are active</p>
+                        <p class="info-subtitle">Your administrator has configured custom styles for this site</p>
+                    </div>
+                </div>
+
+                <!-- User Statistics -->
+                <div class="user-stats">
+                    <div class="stat-item">
+                        <span class="stat-value" id="user-total-rules">0</span>
+                        <span class="stat-label">Total Rules</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="user-active-rules">0</span>
+                        <span class="stat-label">Active</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="user-last-sync">Never</span>
+                        <span class="stat-label">Last Sync</span>
+                    </div>
+                </div>
+
+                <!-- Search for users (read-only) -->
+                <div class="user-search-container">
+                    <input type="text" id="user-search-input" class="search-input" placeholder="Search active rules...">
+                </div>
 
                 <div class="sync-info">
                     <span id="user-sync-status" class="sync-status">Checking for updates...</span>
                     <button id="user-sync-rules" class="btn btn-secondary btn-sm">Refresh</button>
                 </div>
 
-                <div id="user-customization-list" class="customization-list">
+                <div id="user-customization-list" class="customization-list user-mode">
                     <!-- User rules will be populated here -->
                 </div>
 
                 <div id="user-empty-state" class="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path d="M9 12L11 14L15 10" />
-                        <path
-                            d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" />
+                        <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" />
                     </svg>
                     <p>No customizations available</p>
-                    <p class="text-muted">Contact your System Customizer to request changes</p>
+                    <p class="text-muted">Contact your System Administrator to request changes</p>
+                </div>
+
+                <!-- Contact Admin Section -->
+                <div class="contact-admin-section">
+                    <h3>Need Changes?</h3>
+                    <p>Contact your System Administrator or System Customizer to:</p>
+                    <ul>
+                        <li>Request new style customizations</li>
+                        <li>Report issues with existing styles</li>
+                        <li>Suggest improvements</li>
+                    </ul>
+                    <button id="copy-diagnostics" class="btn btn-secondary">Copy Diagnostics</button>
                 </div>
             </div>
         </div>
@@ -376,6 +514,8 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
     </div>
 
     <!-- PRESERVED: Original script reference -->
+    <script src="../scripts/search-filter.js"></script>
+    <script src="../scripts/export-import.js"></script>
     <script src="popup.js"></script>
     <script src="../scripts/dev-mode-indicator.js"></script>
 </body>

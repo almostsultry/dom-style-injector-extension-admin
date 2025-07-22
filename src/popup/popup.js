@@ -186,7 +186,37 @@ const elements = {
     cssEditor: document.getElementById('css-editor'),
     saveRuleBtn: document.getElementById('save-rule'),
     clearEditor: document.getElementById('clear-editor'),
-    existingCustomizations: document.getElementById('existingCustomizations')
+    existingCustomizations: document.getElementById('existingCustomizations'),
+    
+    // Export/Import elements
+    exportBtn: document.getElementById('export-btn'),
+    importBtn: document.getElementById('import-btn'),
+    exportOptions: document.getElementById('export-options'),
+    importOptions: document.getElementById('import-options'),
+    doExportBtn: document.getElementById('do-export'),
+    cancelExportBtn: document.getElementById('cancel-export'),
+    selectFileBtn: document.getElementById('select-file'),
+    cancelImportBtn: document.getElementById('cancel-import'),
+    exportMetadataCheckbox: document.getElementById('export-metadata'),
+    validateImportCheckbox: document.getElementById('validate-import'),
+    importStatusDiv: document.getElementById('import-status'),
+    
+    // Search/Filter elements
+    searchInput: document.getElementById('search-input'),
+    clearSearchBtn: document.getElementById('clear-search'),
+    filterStatusSelect: document.getElementById('filter-status'),
+    filterSortSelect: document.getElementById('filter-sort'),
+    
+    // User view elements
+    userSearchInput: document.getElementById('user-search-input'),
+    userCustomizationList: document.getElementById('user-customization-list'),
+    userEmptyState: document.getElementById('user-empty-state'),
+    userSyncStatus: document.getElementById('user-sync-status'),
+    userSyncButton: document.getElementById('user-sync-rules'),
+    userTotalRules: document.getElementById('user-total-rules'),
+    userActiveRules: document.getElementById('user-active-rules'),
+    userLastSync: document.getElementById('user-last-sync'),
+    copyDiagnosticsBtn: document.getElementById('copy-diagnostics')
 };
 
 // =============================================================================
@@ -626,6 +656,11 @@ async function initializePopup() {
     renderView('loader-view');
 
     try {
+        // Initialize export/import manager
+        await initializeExportImportManager();
+        
+        // Initialize search/filter manager
+        await initializeSearchFilterManager();
         // Check license first
         const licenseCheck = await chrome.runtime.sendMessage({ action: 'checkLicense' });
         
@@ -734,6 +769,26 @@ async function initializeAdminView() {
     } catch (error) {
         console.error('Error initializing admin view:', error);
         showNotification('Failed to initialize: ' + error.message, 'error');
+    }
+}
+
+// Initialize user view
+async function initializeUserView() {
+    isAdmin = false;
+
+    try {
+        // Load customizations for user view
+        await loadCustomizations(false);
+        
+        // Update user view UI
+        updateUserView();
+        
+        // Setup user-specific event listeners (already done in main initialization)
+        
+        console.log('User view initialized');
+    } catch (error) {
+        console.error('Error initializing user view:', error);
+        showNotification('Failed to initialize user view: ' + error.message, 'error');
     }
 }
 
@@ -982,6 +1037,61 @@ function setupEnhancedEventListeners() {
     elements.pseudoToggles?.forEach(toggle => {
         toggle.addEventListener('change', handlePseudoClassToggle);
     });
+    
+    // Export/Import event listeners
+    if (elements.exportBtn) {
+        elements.exportBtn.addEventListener('click', showExportOptions);
+    }
+    
+    if (elements.importBtn) {
+        elements.importBtn.addEventListener('click', showImportOptions);
+    }
+    
+    if (elements.doExportBtn) {
+        elements.doExportBtn.addEventListener('click', handleExport);
+    }
+    
+    if (elements.cancelExportBtn) {
+        elements.cancelExportBtn.addEventListener('click', hideExportOptions);
+    }
+    
+    if (elements.selectFileBtn) {
+        elements.selectFileBtn.addEventListener('click', handleImportFileSelection);
+    }
+    
+    if (elements.cancelImportBtn) {
+        elements.cancelImportBtn.addEventListener('click', hideImportOptions);
+    }
+    
+    // Search/Filter event listeners
+    if (elements.searchInput) {
+        elements.searchInput.addEventListener('input', debounce(handleSearch, 300));
+    }
+    
+    if (elements.clearSearchBtn) {
+        elements.clearSearchBtn.addEventListener('click', clearSearch);
+    }
+    
+    if (elements.filterStatusSelect) {
+        elements.filterStatusSelect.addEventListener('change', handleFilterChange);
+    }
+    
+    if (elements.filterSortSelect) {
+        elements.filterSortSelect.addEventListener('change', handleSortChange);
+    }
+    
+    // User view event listeners
+    if (elements.userSearchInput) {
+        elements.userSearchInput.addEventListener('input', debounce(handleUserSearch, 300));
+    }
+    
+    if (elements.userSyncButton) {
+        elements.userSyncButton.addEventListener('click', handleUserSync);
+    }
+    
+    if (elements.copyDiagnosticsBtn) {
+        elements.copyDiagnosticsBtn.addEventListener('click', copyDiagnostics);
+    }
 }
 
 // =============================================================================
@@ -999,6 +1109,12 @@ async function loadCustomizations(adminMode) {
         }
 
         customizations = storedCustomizations;
+
+        // Initialize search/filter manager with loaded customizations
+        await initializeSearchFilterManager();
+        if (searchFilterManager) {
+            searchFilterManager.setCustomizations(customizations);
+        }
 
         // Update UI based on available elements
         if (elements.customizationList) {
@@ -1336,16 +1452,48 @@ function updateCustomizationList() {
 
     elements.customizationList.innerHTML = '';
 
-    if (customizations.length === 0) {
-        elements.emptyState?.classList.remove('hidden');
-        elements.customizationList.style.display = 'none';
+    // Get filtered results if search/filter is active
+    const displayCustomizations = searchFilterManager ? 
+        searchFilterManager.getFilteredResults() : 
+        customizations;
+
+    if (displayCustomizations.length === 0) {
+        // Check if it's due to search/filter or no customizations at all
+        if (customizations.length > 0 && searchFilterManager) {
+            // Show no search results message
+            const noResults = document.createElement('div');
+            noResults.className = 'no-results';
+            noResults.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <p>No rules match your search</p>
+                <p class="suggestion">Try adjusting your filters or search term</p>
+            `;
+            elements.customizationList.appendChild(noResults);
+            elements.emptyState?.classList.add('hidden');
+        } else {
+            // Show empty state
+            elements.emptyState?.classList.remove('hidden');
+            elements.customizationList.style.display = 'none';
+        }
         return;
     }
 
     elements.emptyState?.classList.add('hidden');
     elements.customizationList.style.display = 'block';
 
-    customizations.forEach(customization => {
+    // Show search results info if search is active
+    if (searchFilterManager && (elements.searchInput?.value || elements.filterStatusSelect?.value !== 'all')) {
+        const stats = searchFilterManager.getStatistics();
+        const info = document.createElement('div');
+        info.className = 'search-results-info';
+        info.innerHTML = `Showing <strong>${stats.filtered}</strong> of <strong>${stats.total}</strong> rules`;
+        elements.customizationList.appendChild(info);
+    }
+
+    displayCustomizations.forEach(customization => {
         const item = createCustomizationItem(customization);
         elements.customizationList.appendChild(item);
     });
@@ -2330,6 +2478,435 @@ window.deleteCustomization = async function (selector, property, queryPattern) {
         console.error('Delete customization error:', error);
     }
 };
+
+// =============================================================================
+// SEARCH/FILTER FUNCTIONALITY
+// =============================================================================
+let searchFilterManager = null;
+
+// Initialize the search/filter manager
+async function initializeSearchFilterManager() {
+    if (!searchFilterManager && window.SearchFilterManager) {
+        searchFilterManager = new window.SearchFilterManager();
+        searchFilterManager.setCustomizations(customizations);
+    }
+}
+
+// Handle search input
+function handleSearch() {
+    const searchTerm = elements.searchInput?.value || '';
+    
+    if (searchTerm) {
+        elements.clearSearchBtn.style.display = 'block';
+    } else {
+        elements.clearSearchBtn.style.display = 'none';
+    }
+    
+    if (searchFilterManager) {
+        searchFilterManager.search(searchTerm);
+        updateCustomizationList();
+    }
+}
+
+// Clear search
+function clearSearch() {
+    if (elements.searchInput) {
+        elements.searchInput.value = '';
+        elements.clearSearchBtn.style.display = 'none';
+    }
+    
+    if (searchFilterManager) {
+        searchFilterManager.search('');
+        updateCustomizationList();
+    }
+}
+
+// Handle filter change
+function handleFilterChange() {
+    const filterValue = elements.filterStatusSelect?.value || 'all';
+    
+    if (searchFilterManager) {
+        searchFilterManager.setFilter('enabled', filterValue);
+        updateCustomizationList();
+    }
+}
+
+// Handle sort change
+function handleSortChange() {
+    const sortValue = elements.filterSortSelect?.value || 'modified-desc';
+    const [sortBy, sortOrder] = sortValue.split('-');
+    
+    if (searchFilterManager) {
+        searchFilterManager.setFilter('sortBy', sortBy);
+        searchFilterManager.setFilter('sortOrder', sortOrder);
+        updateCustomizationList();
+    }
+}
+
+// =============================================================================
+// EXPORT/IMPORT FUNCTIONALITY
+// =============================================================================
+let exportImportManager = null;
+
+// Initialize the export/import manager
+async function initializeExportImportManager() {
+    if (!exportImportManager && window.ExportImportManager) {
+        exportImportManager = new window.ExportImportManager();
+    }
+}
+
+// Show export options panel
+function showExportOptions() {
+    if (elements.exportOptions) {
+        elements.exportOptions.style.display = 'block';
+        elements.importOptions.style.display = 'none';
+    }
+}
+
+// Hide export options panel
+function hideExportOptions() {
+    if (elements.exportOptions) {
+        elements.exportOptions.style.display = 'none';
+    }
+}
+
+// Show import options panel
+function showImportOptions() {
+    if (elements.importOptions) {
+        elements.importOptions.style.display = 'block';
+        elements.exportOptions.style.display = 'none';
+        elements.importStatusDiv.style.display = 'none';
+    }
+}
+
+// Hide import options panel
+function hideImportOptions() {
+    if (elements.importOptions) {
+        elements.importOptions.style.display = 'none';
+        elements.importStatusDiv.style.display = 'none';
+    }
+}
+
+// Handle export
+async function handleExport() {
+    try {
+        // Check permission
+        if (!await checkPermission('EXPORT_DATA')) {
+            showNotification('You do not have permission to export data', 'error');
+            return;
+        }
+        
+        await initializeExportImportManager();
+        
+        const format = document.querySelector('input[name="export-format"]:checked')?.value || 'json';
+        const includeMetadata = elements.exportMetadataCheckbox?.checked ?? true;
+        
+        const exportData = await exportImportManager.exportCustomizations({
+            format,
+            includeMetadata
+        });
+        
+        // Download the file
+        exportImportManager.downloadFile(
+            exportData.content,
+            exportData.filename,
+            exportData.mimeType
+        );
+        
+        showNotification('Export completed successfully', 'success');
+        hideExportOptions();
+        
+        // Log admin action
+        await logAdminAction('EXPORT_DATA', {
+            format,
+            customizationCount: customizations.length,
+            includeMetadata
+        });
+        
+    } catch (error) {
+        console.error('Export error:', error);
+        showNotification('Export failed: ' + error.message, 'error');
+    }
+}
+
+// Handle import file selection
+async function handleImportFileSelection() {
+    try {
+        // Check permission
+        if (!await checkPermission('IMPORT_DATA')) {
+            showNotification('You do not have permission to import data', 'error');
+            return;
+        }
+        
+        await initializeExportImportManager();
+        
+        const fileData = await exportImportManager.uploadFile('.json,.csv,.xlsx');
+        
+        // Show status
+        showImportStatus('Processing file...', 'info');
+        
+        const mergeStrategy = document.querySelector('input[name="merge-strategy"]:checked')?.value || 'merge';
+        const validateBeforeImport = elements.validateImportCheckbox?.checked ?? true;
+        
+        const result = await exportImportManager.importCustomizations(fileData.content, {
+            format: fileData.format,
+            mergeStrategy,
+            validateBeforeImport
+        });
+        
+        // Show results
+        if (result.success) {
+            let statusMessage = `Successfully imported ${result.imported} rule(s)`;
+            
+            if (result.conflicts > 0) {
+                statusMessage += `\n${result.conflicts} conflicts were resolved`;
+            }
+            
+            showImportStatus(statusMessage, 'success');
+            
+            // Reload customizations
+            await loadCustomizations(isAdmin);
+            
+            // Log admin action
+            await logAdminAction('IMPORT_DATA', {
+                format: fileData.format,
+                imported: result.imported,
+                total: result.total,
+                conflicts: result.conflicts,
+                mergeStrategy
+            });
+            
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                hideImportOptions();
+            }, 3000);
+            
+        } else {
+            showImportStatus('Import failed', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Import error:', error);
+        showImportStatus('Import failed: ' + error.message, 'error');
+    }
+}
+
+// Show import status message
+function showImportStatus(message, type = 'info') {
+    if (elements.importStatusDiv) {
+        elements.importStatusDiv.className = 'import-status ' + type;
+        elements.importStatusDiv.textContent = message;
+        elements.importStatusDiv.style.display = 'block';
+    }
+}
+
+// =============================================================================
+// USER VIEW FUNCTIONALITY
+// =============================================================================
+let userSearchTerm = '';
+
+// Handle user search
+function handleUserSearch() {
+    userSearchTerm = elements.userSearchInput?.value.toLowerCase() || '';
+    updateUserCustomizationList();
+}
+
+// Handle user sync
+async function handleUserSync() {
+    try {
+        elements.userSyncButton.disabled = true;
+        elements.userSyncStatus.textContent = 'Syncing...';
+        
+        // Trigger sync through background
+        const result = await chrome.runtime.sendMessage({ action: 'syncRules' });
+        
+        if (result.success) {
+            elements.userSyncStatus.textContent = 'Synced successfully';
+            const now = new Date();
+            elements.userLastSync.textContent = now.toLocaleTimeString();
+            
+            // Reload customizations
+            await loadCustomizations(false);
+            updateUserView();
+        } else {
+            elements.userSyncStatus.textContent = 'Sync failed';
+        }
+        
+    } catch (error) {
+        console.error('User sync error:', error);
+        elements.userSyncStatus.textContent = 'Sync error';
+    } finally {
+        elements.userSyncButton.disabled = false;
+        
+        // Reset status after 3 seconds
+        setTimeout(() => {
+            elements.userSyncStatus.textContent = 'Ready';
+        }, 3000);
+    }
+}
+
+// Copy diagnostics information
+async function copyDiagnostics() {
+    try {
+        const diagnostics = {
+            extensionVersion: chrome.runtime.getManifest().version,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            url: currentTab?.url || 'Unknown',
+            customizationCount: customizations.length,
+            activeRules: customizations.filter(c => c.enabled !== false).length,
+            errors: []
+        };
+        
+        // Check for rule errors
+        customizations.forEach(rule => {
+            try {
+                document.querySelector(rule.selector);
+            } catch (e) {
+                diagnostics.errors.push({
+                    ruleId: rule.id,
+                    ruleName: rule.name,
+                    selector: rule.selector,
+                    error: 'Invalid selector'
+                });
+            }
+        });
+        
+        const diagnosticsText = `DOM Style Injector Diagnostics
+===========================
+Generated: ${diagnostics.timestamp}
+Extension Version: ${diagnostics.extensionVersion}
+Current URL: ${diagnostics.url}
+
+Rules Summary:
+- Total Rules: ${diagnostics.customizationCount}
+- Active Rules: ${diagnostics.activeRules}
+- Rules with Errors: ${diagnostics.errors.length}
+
+${diagnostics.errors.length > 0 ? `\nErrors Found:\n${diagnostics.errors.map(e => 
+    `- Rule "${e.ruleName}" (${e.ruleId}): ${e.error}`
+).join('\n')}` : 'No errors detected'}
+
+System Info:
+${diagnostics.userAgent}
+`;
+        
+        await navigator.clipboard.writeText(diagnosticsText);
+        
+        // Show feedback
+        elements.copyDiagnosticsBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            elements.copyDiagnosticsBtn.textContent = 'Copy Diagnostics';
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Copy diagnostics error:', error);
+        showNotification('Failed to copy diagnostics', 'error');
+    }
+}
+
+// Update user view UI
+function updateUserView() {
+    if (!elements.userCustomizationList) return;
+    
+    // Update statistics
+    const totalRules = customizations.length;
+    const activeRules = customizations.filter(c => c.enabled !== false).length;
+    
+    if (elements.userTotalRules) elements.userTotalRules.textContent = totalRules;
+    if (elements.userActiveRules) elements.userActiveRules.textContent = activeRules;
+    
+    // Update last sync time
+    chrome.storage.local.get('lastSyncTime', (result) => {
+        if (result.lastSyncTime && elements.userLastSync) {
+            const lastSync = new Date(result.lastSyncTime);
+            const now = new Date();
+            const diffMinutes = Math.floor((now - lastSync) / 60000);
+            
+            if (diffMinutes < 1) {
+                elements.userLastSync.textContent = 'Just now';
+            } else if (diffMinutes < 60) {
+                elements.userLastSync.textContent = `${diffMinutes}m ago`;
+            } else if (diffMinutes < 1440) {
+                const hours = Math.floor(diffMinutes / 60);
+                elements.userLastSync.textContent = `${hours}h ago`;
+            } else {
+                elements.userLastSync.textContent = lastSync.toLocaleDateString();
+            }
+        }
+    });
+    
+    updateUserCustomizationList();
+}
+
+// Update user customization list
+function updateUserCustomizationList() {
+    if (!elements.userCustomizationList) return;
+    
+    elements.userCustomizationList.innerHTML = '';
+    
+    // Filter customizations based on search
+    let displayCustomizations = customizations.filter(c => c.enabled !== false);
+    
+    if (userSearchTerm) {
+        displayCustomizations = displayCustomizations.filter(c => {
+            const searchableText = [
+                c.name,
+                c.selector,
+                c.css,
+                c.category
+            ].filter(Boolean).join(' ').toLowerCase();
+            
+            return searchableText.includes(userSearchTerm);
+        });
+    }
+    
+    if (displayCustomizations.length === 0) {
+        elements.userEmptyState?.classList.remove('hidden');
+        elements.userCustomizationList.style.display = 'none';
+        return;
+    }
+    
+    elements.userEmptyState?.classList.add('hidden');
+    elements.userCustomizationList.style.display = 'block';
+    
+    displayCustomizations.forEach(customization => {
+        const item = createUserCustomizationItem(customization);
+        elements.userCustomizationList.appendChild(item);
+    });
+}
+
+// Create user customization item (read-only)
+function createUserCustomizationItem(customization) {
+    const item = document.createElement('div');
+    item.className = 'customization-item user-item';
+    
+    const hasPseudoClasses = customization.pseudoClasses && 
+        Object.keys(customization.pseudoClasses).length > 0;
+    
+    const pseudoClassBadges = hasPseudoClasses ?
+        Object.keys(customization.pseudoClasses).map(pseudo =>
+            `<span class="state-badge ${pseudo}">:${pseudo}</span>`
+        ).join('') : '';
+    
+    item.innerHTML = `
+        <div class="customization-info">
+            <div class="customization-name">${escapeHtml(customization.name || 'Unnamed Rule')}</div>
+            <div class="customization-details">${escapeHtml(customization.selector)}</div>
+            ${customization.category ? 
+                `<div class="customization-details">Category: ${escapeHtml(customization.category)}</div>` : 
+                ''}
+            ${pseudoClassBadges ? 
+                `<div class="pseudo-class-badges">${pseudoClassBadges}</div>` : 
+                ''}
+        </div>
+        <div class="customization-status">
+            <span class="status-badge active">Active</span>
+        </div>
+    `;
+    
+    return item;
+}
 
 // =============================================================================
 // MESSAGE HANDLING
