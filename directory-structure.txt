@@ -1,0 +1,185 @@
+.
+├── .claude
+│   └── settings.local.json
+├── .github
+│   ├── ISSUE_TEMPLATE
+│   │   ├── bug_report.md
+│   │   ├── config.yml
+│   │   └── feature_request.md
+│   ├── workflows
+│   │   ├── cd-chrome-store.yml
+│   │   ├── cd-edge-store.yml
+│   │   ├── ci.yml
+│   │   ├── release.yml
+│   │   └── security-scan.yml
+│   ├── CODEOWNERS
+│   └── PULL_REQUEST_TEMPLATE.md
+├── .husky
+│   └── _
+│       ├── .gitignore
+│       └── husky.sh
+├── backend-template
+│   ├── scripts
+│   │   └── setup.sh
+│   ├── .dockerignore
+│   ├── .env.development
+│   ├── .env.example
+│   ├── docker-compose.dev.yml
+│   ├── docker-compose.prod.yml
+│   ├── docker-compose.yml
+│   ├── Dockerfile
+│   ├── init.sql
+│   ├── Makefile
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── QUICKSTART.md
+│   ├── README.md
+│   └── server.js
+├── build
+│   ├── build.js
+│   ├── release.js
+│   └── webpack.config.js
+├── config
+│   ├── environments
+│   │   ├── development.json
+│   │   ├── production.json
+│   │   └── staging.json
+│   └── store-configs
+│       ├── chrome-store.json
+│       └── edge-store.json
+├── dist
+│   ├── assets
+│   │   ├── icon128.png
+│   │   ├── icon16.png
+│   │   └── icon48.png
+│   ├── options
+│   │   ├── options.css
+│   │   ├── options.html
+│   │   └── options.js
+│   ├── popup
+│   │   ├── popup.css
+│   │   ├── popup.html
+│   │   └── popup.js
+│   ├── scripts
+│   │   ├── content.js
+│   │   └── content.js.map
+│   ├── styles
+│   │   ├── admin-theme.css
+│   │   ├── common.css
+│   │   ├── popup.css
+│   │   └── user-theme.css
+│   ├── 908.js
+│   ├── 908.js.LICENSE.txt
+│   ├── background.js
+│   ├── content.js
+│   └── manifest.json
+├── docs
+│   ├── admin
+│   │   ├── installation.md
+│   │   ├── permissions.md
+│   │   ├── sharepoint-setup.md
+│   │   └── usage.md
+│   ├── deployment
+│   │   ├── ci-cd-setup.md
+│   │   ├── environment-config.md
+│   │   └── store-submission.md
+│   ├── development
+│   │   ├── architecture.md
+│   │   ├── contributing.md
+│   │   ├── css-migration-guide.md
+│   │   ├── dev-setup-guide.md
+│   │   ├── package-json-guide.md
+│   │   └── testing.md
+│   ├── user
+│   │   ├── installation.md
+│   │   └── usage.md
+│   └── migration-to-unified.md
+├── scripts
+│   ├── generate-manifest.js
+│   ├── package-extension.js
+│   └── version-bump.js
+├── security
+│   ├── content-security-policy.json
+│   ├── permissions-audit.md
+│   └── vulnerability-scan-config.yml
+├── src
+│   ├── assets
+│   │   ├── icon128.png
+│   │   ├── icon16.png
+│   │   └── icon48.png
+│   ├── auth
+│   │   ├── auth-service.js
+│   │   └── msal-config.js
+│   ├── config
+│   │   ├── api-config.js
+│   │   └── development.js
+│   ├── lib
+│   │   └── msal-browser.min.js
+│   ├── options
+│   │   ├── options.html
+│   │   └── options.js
+│   ├── popup
+│   │   ├── popup.html
+│   │   └── popup.js
+│   ├── scripts
+│   │   ├── ai-integration-manager.js
+│   │   ├── background.js
+│   │   ├── branding-manager.js
+│   │   ├── content.js
+│   │   ├── dataverse-conflict-resolver.js
+│   │   ├── dev-mode-indicator.js
+│   │   ├── export-import.js
+│   │   ├── eyedropper-manager.js
+│   │   ├── kmsi-handler.js
+│   │   ├── license-required.js
+│   │   ├── license-validator.js
+│   │   ├── permissions.js
+│   │   ├── screenshot-manager.js
+│   │   ├── search-filter.js
+│   │   ├── secure-backend-client.js
+│   │   └── visio-integration-manager.js
+│   ├── styles
+│   │   ├── admin-theme.css
+│   │   ├── common.css
+│   │   ├── options.css
+│   │   ├── popup.css
+│   │   ├── pseudo-classes.css
+│   │   └── user-theme.css
+│   ├── sync
+│   │   ├── sharepoint-service.js
+│   │   └── sync-manager.js
+│   ├── content.js
+│   ├── license-required.html
+│   └── manifest.json
+├── styles
+├── tests
+│   ├── __mocks__
+│   │   └── styleMock.js
+│   ├── e2e
+│   │   ├── admin-workflow.test.js
+│   │   └── user-workflow-test.js
+│   ├── fixtures
+│   │   └── test-data.json
+│   ├── integration
+│   │   ├── auth.test.js
+│   │   └── sharepoint.test.js
+│   ├── unit
+│   │   ├── content.test.js
+│   │   ├── popup.test.js
+│   │   └── sync.test.js
+│   └── setup.js
+├── .gitignore
+├── ARCHITECTURE.md
+├── Changelog.md
+├── CLAUDE.md
+├── DEVELOPMENT.md
+├── directory-structure.txt
+├── eslint.config.js
+├── IMPLEMENTATION_PLAN.md
+├── LICENSE
+├── package-lock.json
+├── package.json
+├── README
+└── SECURITY.md
+
+43 directories, 140 files
