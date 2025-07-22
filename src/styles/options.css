@@ -63,20 +63,33 @@ header .subtitle {
 
 .form-group input[type="text"],
 .form-group input[type="url"],
-.form-group textarea {
+.form-group textarea,
+.form-group select {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     font-size: 14px;
     transition: border-color 0.2s;
+    background-color: white;
 }
 
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Select dropdown styling */
+.form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 20px;
+    padding-right: 40px;
 }
 
 .form-group input.invalid {
@@ -181,6 +194,72 @@ input[type="checkbox"] {
     height: 16px;
     margin-right: 8px;
     vertical-align: middle;
+    cursor: pointer;
+}
+
+/* Checkbox label styling */
+.form-group label:has(input[type="checkbox"]) {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.form-group label:has(input[type="checkbox"]):hover {
+    color: var(--primary-color);
+}
+
+/* Sync section specific styles */
+.config-section h2 {
+    position: relative;
+}
+
+/* Conflict info styling */
+.cache-info p:last-child {
+    color: var(--warning-color);
+    font-weight: 500;
+}
+
+/* Button group responsive */
+.button-group {
+    flex-wrap: wrap;
+}
+
+.button-group .btn {
+    flex: 1;
+    min-width: 140px;
+}
+
+/* Disabled button state */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Section dividers */
+.config-section + .config-section {
+    margin-top: 25px;
+}
+
+/* Sync status indicators */
+.sync-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.sync-indicator.success {
+    background-color: var(--success-color);
+}
+
+.sync-indicator.error {
+    background-color: var(--error-color);
+}
+
+.sync-indicator.pending {
+    background-color: var(--warning-color);
 }
 
 /* File input button styling */
@@ -230,6 +309,85 @@ label.btn {
     display: flex;
     gap: 10px;
     justify-content: flex-end;
+}
+
+/* Sync configuration visual enhancements */
+.config-section:has(#conflict-resolution) {
+    background: linear-gradient(to bottom, #ffffff, #fafbfc);
+    border: 1px solid #e1e4e8;
+}
+
+.config-section:has(#conflict-resolution) h2 {
+    color: var(--primary-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.config-section:has(#conflict-resolution) h2::before {
+    content: "⚡";
+    font-size: 24px;
+}
+
+/* Highlight conflict resolution dropdown */
+#conflict-resolution {
+    font-weight: 500;
+}
+
+#conflict-resolution option {
+    padding: 5px;
+}
+
+/* Visual feedback for sync buttons */
+#sync-dataverse,
+#sync-sharepoint {
+    position: relative;
+    overflow: hidden;
+}
+
+#sync-dataverse::before,
+#sync-sharepoint::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+#sync-dataverse:active::before,
+#sync-sharepoint:active::before {
+    width: 200px;
+    height: 200px;
+}
+
+/* Loading animation for sync buttons */
+.btn.syncing {
+    position: relative;
+    color: transparent;
+}
+
+.btn.syncing::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spinner 0.8s linear infinite;
+}
+
+@keyframes spinner {
+    to { transform: rotate(360deg); }
 }
 
 /* Responsive design */

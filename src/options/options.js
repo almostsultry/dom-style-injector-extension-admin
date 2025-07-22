@@ -14,11 +14,21 @@ const mockTokenTextarea = document.getElementById('mock-token');
 const saveSettingsBtn = document.getElementById('save-settings');
 const saveStatus = document.getElementById('save-status');
 const clearCacheBtn = document.getElementById('clear-cache');
-const forceSyncBtn = document.getElementById('force-sync');
 const exportBtn = document.getElementById('export-customizations');
 const importFileInput = document.getElementById('import-file');
 const roleCacheStatus = document.getElementById('role-cache-status');
 const lastSyncElement = document.getElementById('last-sync');
+const lastConflictElement = document.getElementById('last-conflict');
+
+// New sync-related elements
+const dataverseTableInput = document.getElementById('dataverse-table');
+const sharePointUrlInput = document.getElementById('sharepoint-url');
+const sharePointListInput = document.getElementById('sharepoint-list');
+const conflictResolutionSelect = document.getElementById('conflict-resolution');
+const autoSyncCheckbox = document.getElementById('auto-sync');
+const syncOnStartupCheckbox = document.getElementById('sync-on-startup');
+const syncDataverseBtn = document.getElementById('sync-dataverse');
+const syncSharePointBtn = document.getElementById('sync-sharepoint');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -34,25 +44,48 @@ async function loadSettings() {
         const settings = await chrome.storage.sync.get([
             'd365OrgUrl',
             'clientId',
-            'tenantId'
+            'tenantId',
+            'dataverseTableName',
+            'sharePointUrl',
+            'sharePointListName',
+            'conflictResolution',
+            'autoSync',
+            'syncOnStartup'
         ]);
 
         const localSettings = await chrome.storage.local.get([
             'mockToken',
             'userRole',
-            'lastSync'
+            'lastSync',
+            'lastDataverseSync',
+            'lastSyncConflicts',
+            'conflictHistory'
         ]);
 
         // Populate form fields
         if (settings.d365OrgUrl) d365UrlInput.value = settings.d365OrgUrl;
         if (settings.clientId) clientIdInput.value = settings.clientId;
         if (settings.tenantId) tenantIdInput.value = settings.tenantId;
+        
+        // Sync settings
+        if (settings.dataverseTableName) dataverseTableInput.value = settings.dataverseTableName;
+        if (settings.sharePointUrl) sharePointUrlInput.value = settings.sharePointUrl;
+        if (settings.sharePointListName) sharePointListInput.value = settings.sharePointListName;
+        if (settings.conflictResolution) conflictResolutionSelect.value = settings.conflictResolution;
+        if (settings.autoSync !== undefined) autoSyncCheckbox.checked = settings.autoSync;
+        if (settings.syncOnStartup !== undefined) syncOnStartupCheckbox.checked = settings.syncOnStartup;
 
         // Check if using mock token
         if (localSettings.mockToken) {
             useMockTokenCheckbox.checked = true;
             mockTokenGroup.style.display = 'block';
             mockTokenTextarea.value = localSettings.mockToken;
+        }
+        
+        // Update conflict info
+        if (localSettings.lastSyncConflicts && localSettings.lastSyncConflicts.length > 0) {
+            const lastConflict = localSettings.lastSyncConflicts[localSettings.lastSyncConflicts.length - 1];
+            lastConflictElement.textContent = `${localSettings.lastSyncConflicts.length} conflicts (${lastConflict.resolution})`;
         }
     } catch (error) {
         console.error('Error loading settings:', error);
@@ -65,7 +98,8 @@ function setupEventListeners() {
     saveSettingsBtn.addEventListener('click', saveSettings);
     copyRedirectUriBtn.addEventListener('click', copyRedirectUri);
     clearCacheBtn.addEventListener('click', clearCache);
-    forceSyncBtn.addEventListener('click', forceSync);
+    syncDataverseBtn.addEventListener('click', () => syncWithDataverse());
+    syncSharePointBtn.addEventListener('click', () => syncWithSharePoint());
     exportBtn.addEventListener('click', exportCustomizations);
     importFileInput.addEventListener('change', importCustomizations);
 
@@ -81,6 +115,7 @@ function setupEventListeners() {
     d365UrlInput.addEventListener('input', validateD365Url);
     clientIdInput.addEventListener('input', validateGuid);
     tenantIdInput.addEventListener('input', validateGuid);
+    sharePointUrlInput.addEventListener('input', validateSharePointUrl);
 }
 
 // Update redirect URI
@@ -137,6 +172,15 @@ function validateGuid(e) {
     return isValid;
 }
 
+// Validate SharePoint URL
+function validateSharePointUrl(e) {
+    const url = e.target.value;
+    const isValid = /^https:\/\/[\w-]+\.sharepoint\.com(\/sites\/[\w-]+)?/.test(url);
+    
+    e.target.classList.toggle('invalid', url && !isValid);
+    return isValid;
+}
+
 // Save settings
 async function saveSettings() {
     saveSettingsBtn.disabled = true;
@@ -147,6 +191,14 @@ async function saveSettings() {
         const d365OrgUrl = d365UrlInput.value.trim().replace(/\/$/, ''); // Remove trailing slash
         const clientId = clientIdInput.value.trim();
         const tenantId = tenantIdInput.value.trim();
+        
+        // Get sync settings
+        const dataverseTableName = dataverseTableInput.value.trim() || 'cr123_domstylecustomizations';
+        const sharePointUrl = sharePointUrlInput.value.trim();
+        const sharePointListName = sharePointListInput.value.trim() || 'DOM Style Customizations';
+        const conflictResolution = conflictResolutionSelect.value;
+        const autoSync = autoSyncCheckbox.checked;
+        const syncOnStartup = syncOnStartupCheckbox.checked;
 
         // Validate
         if (!d365OrgUrl) {
@@ -156,12 +208,22 @@ async function saveSettings() {
         if (!validateD365Url({ target: d365UrlInput })) {
             throw new Error('Invalid D365 URL format');
         }
+        
+        if (sharePointUrl && !validateSharePointUrl({ target: sharePointUrlInput })) {
+            throw new Error('Invalid SharePoint URL format');
+        }
 
         // Save to sync storage
         await chrome.storage.sync.set({
             d365OrgUrl,
             clientId: clientId || null,
-            tenantId: tenantId || null
+            tenantId: tenantId || null,
+            dataverseTableName,
+            sharePointUrl: sharePointUrl || null,
+            sharePointListName,
+            conflictResolution,
+            autoSync,
+            syncOnStartup
         });
 
         // Handle mock token
@@ -171,6 +233,13 @@ async function saveSettings() {
             });
         } else {
             await chrome.storage.local.remove('mockToken');
+        }
+        
+        // Update alarms based on auto-sync setting
+        if (autoSync) {
+            chrome.alarms.create('periodicSync', { periodInMinutes: 60 });
+        } else {
+            chrome.alarms.clear('periodicSync');
         }
 
         // Clear auth cache when settings change
@@ -205,24 +274,59 @@ async function clearAuthCache() {
     console.log('Authentication cache cleared');
 }
 
-// Force sync
-async function forceSync() {
+// Sync with Dataverse
+async function syncWithDataverse() {
     try {
-        showStatus('Syncing...', 'info');
+        showStatus('Syncing with Dataverse...', 'info');
+        syncDataverseBtn.disabled = true;
+        syncDataverseBtn.classList.add('syncing');
+
+        const response = await chrome.runtime.sendMessage({
+            action: 'syncFromDataverse'
+        });
+
+        if (response.success) {
+            let message = `Synced ${response.count} customizations from Dataverse`;
+            if (response.conflicts > 0) {
+                message += ` (${response.conflicts} conflicts resolved)`;
+            }
+            showStatus(message, 'success');
+            updateCacheStatus();
+        } else {
+            throw new Error(response.error || 'Dataverse sync failed');
+        }
+    } catch (error) {
+        console.error('Dataverse sync error:', error);
+        showStatus('Dataverse sync failed: ' + error.message, 'error');
+    } finally {
+        syncDataverseBtn.disabled = false;
+        syncDataverseBtn.classList.remove('syncing');
+    }
+}
+
+// Sync with SharePoint
+async function syncWithSharePoint() {
+    try {
+        showStatus('Syncing with SharePoint...', 'info');
+        syncSharePointBtn.disabled = true;
+        syncSharePointBtn.classList.add('syncing');
 
         const response = await chrome.runtime.sendMessage({
             action: 'syncFromSharePoint'
         });
 
         if (response.success) {
-            showStatus(`Synced ${response.count} customizations`, 'success');
+            showStatus(`Synced ${response.count} customizations from SharePoint`, 'success');
             updateCacheStatus();
         } else {
-            throw new Error(response.error || 'Sync failed');
+            throw new Error(response.error || 'SharePoint sync failed');
         }
     } catch (error) {
-        console.error('Sync error:', error);
-        showStatus('Sync failed: ' + error.message, 'error');
+        console.error('SharePoint sync error:', error);
+        showStatus('SharePoint sync failed: ' + error.message, 'error');
+    } finally {
+        syncSharePointBtn.disabled = false;
+        syncSharePointBtn.classList.remove('syncing');
     }
 }
 
@@ -328,22 +432,44 @@ function showConfirmDialog(title, message) {
 // Update cache status
 async function updateCacheStatus() {
     try {
-        const { userRole, lastSync } = await chrome.storage.local.get(['userRole', 'lastSync']);
+        const data = await chrome.storage.local.get([
+            'userRole', 
+            'lastSync',
+            'lastDataverseSync',
+            'lastSyncConflicts',
+            'conflictHistory'
+        ]);
 
-        if (userRole) {
-            const age = Date.now() - userRole.timestamp;
+        // Update role cache status
+        if (data.userRole) {
+            const age = Date.now() - data.userRole.timestamp;
             const hours = Math.floor(age / (1000 * 60 * 60));
             const minutes = Math.floor((age % (1000 * 60 * 60)) / (1000 * 60));
 
-            roleCacheStatus.textContent = `${userRole.isAdmin ? 'Admin' : 'User'} (${hours}h ${minutes}m old)`;
+            roleCacheStatus.textContent = `${data.userRole.isAdmin ? 'Admin' : 'User'} (${hours}h ${minutes}m old)`;
         } else {
             roleCacheStatus.textContent = 'Not cached';
         }
 
-        if (lastSync) {
-            lastSyncElement.textContent = new Date(lastSync).toLocaleString();
+        // Update last sync time
+        const lastSyncTime = data.lastDataverseSync || data.lastSync;
+        if (lastSyncTime) {
+            lastSyncElement.textContent = new Date(lastSyncTime).toLocaleString();
         } else {
             lastSyncElement.textContent = 'Never';
+        }
+        
+        // Update conflict status
+        if (data.lastSyncConflicts && data.lastSyncConflicts.length > 0) {
+            const conflicts = data.lastSyncConflicts;
+            const resolutions = conflicts.map(c => c.resolution);
+            const uniqueResolutions = [...new Set(resolutions)];
+            lastConflictElement.textContent = `${conflicts.length} conflicts (${uniqueResolutions.join(', ')})`;
+        } else if (data.conflictHistory && data.conflictHistory.dataverse && data.conflictHistory.dataverse.length > 0) {
+            const lastHistory = data.conflictHistory.dataverse[data.conflictHistory.dataverse.length - 1];
+            lastConflictElement.textContent = `Last: ${lastHistory.conflicts} conflicts (${new Date(lastHistory.timestamp).toLocaleDateString()})`;
+        } else {
+            lastConflictElement.textContent = 'None';
         }
     } catch (error) {
         console.error('Error updating cache status:', error);

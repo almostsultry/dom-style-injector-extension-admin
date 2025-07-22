@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DOM Style Injector - Settings</title>
     <link rel="stylesheet" href="../styles/common.css">
-    <link rel="stylesheet" href="options.css">
+    <link rel="stylesheet" href="../styles/options.css">
 </head>
 <body>
     <div class="container">
@@ -65,17 +65,74 @@
                 </div>
             </section>
 
+            <!-- Synchronization Settings -->
+            <section class="config-section">
+                <h2>Synchronization Settings</h2>
+                
+                <!-- Dataverse Configuration -->
+                <div class="form-group">
+                    <label for="dataverse-table">Dataverse Table Name</label>
+                    <input type="text" id="dataverse-table" placeholder="cr123_domstylecustomizations">
+                    <small>Custom table name for storing customizations in Dataverse</small>
+                </div>
+                
+                <!-- SharePoint Configuration -->
+                <div class="form-group">
+                    <label for="sharepoint-url">SharePoint Site URL</label>
+                    <input type="url" id="sharepoint-url" placeholder="https://yourorg.sharepoint.com/sites/yoursite">
+                    <small>SharePoint site for storing customizations (optional)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sharepoint-list">SharePoint List Name</label>
+                    <input type="text" id="sharepoint-list" placeholder="DOM Style Customizations">
+                    <small>List name in SharePoint for customizations</small>
+                </div>
+                
+                <!-- Conflict Resolution -->
+                <div class="form-group">
+                    <label for="conflict-resolution">Conflict Resolution Strategy</label>
+                    <select id="conflict-resolution" class="form-select">
+                        <option value="newest_wins">Newest Wins (Recommended)</option>
+                        <option value="remote_wins">Remote Wins (Dataverse/SharePoint Priority)</option>
+                        <option value="local_wins">Local Wins (Keep Local Changes)</option>
+                        <option value="merge">Merge (Combine Both)</option>
+                        <option value="manual">Manual (Ask Each Time)</option>
+                    </select>
+                    <small>How to handle conflicts when syncing customizations</small>
+                </div>
+                
+                <!-- Sync Options -->
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="auto-sync">
+                        Enable automatic synchronization
+                    </label>
+                    <small>Automatically sync customizations every hour</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="sync-on-startup">
+                        Sync on browser startup
+                    </label>
+                    <small>Sync customizations when the browser starts</small>
+                </div>
+            </section>
+
             <!-- Cache Management -->
             <section class="config-section">
                 <h2>Cache Management</h2>
                 <div class="cache-info">
                     <p>User role cache: <span id="role-cache-status">Checking...</span></p>
                     <p>Last sync: <span id="last-sync">Never</span></p>
+                    <p>Last conflict: <span id="last-conflict">None</span></p>
                 </div>
                 
                 <div class="button-group">
                     <button id="clear-cache" class="btn btn-secondary">Clear Cache</button>
-                    <button id="force-sync" class="btn btn-secondary">Force Sync</button>
+                    <button id="sync-dataverse" class="btn btn-secondary">Sync with Dataverse</button>
+                    <button id="sync-sharepoint" class="btn btn-secondary">Sync with SharePoint</button>
                 </div>
             </section>
 

@@ -885,6 +885,141 @@ async function checkUserRoleInD365(authToken, orgUrl) {
   }
 }
 
+// =============================================================================
+// DATAVERSE CONFLICT RESOLUTION
+// =============================================================================
+
+// Conflict resolution strategies
+const ConflictResolutionStrategy = {
+  LOCAL_WINS: 'local_wins',
+  REMOTE_WINS: 'remote_wins',
+  NEWEST_WINS: 'newest_wins',
+  MERGE: 'merge',
+  MANUAL: 'manual'
+};
+
+// Check if two customizations are equal
+function areCustomizationsEqual(custom1, custom2) {
+  const props = ['name', 'selector', 'css', 'enabled', 'targetUrl', 'priority', 'category'];
+  
+  for (const prop of props) {
+    if (custom1[prop] !== custom2[prop]) {
+      return false;
+    }
+  }
+
+  // Compare pseudo-classes
+  const pseudo1 = custom1.pseudoClasses || {};
+  const pseudo2 = custom2.pseudoClasses || {};
+  
+  if (Object.keys(pseudo1).length !== Object.keys(pseudo2).length) {
+    return false;
+  }
+
+  for (const key in pseudo1) {
+    if (JSON.stringify(pseudo1[key]) !== JSON.stringify(pseudo2[key])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Resolve conflict between local and remote customization
+async function resolveDataverseConflict(local, remote, strategy) {
+  // Compare timestamps
+  const localTime = new Date(local.modifiedOn || local.updated || local.created || 0).getTime();
+  const remoteTime = new Date(remote.modifiedOn || remote.updated || remote.created || 0).getTime();
+
+  // Check if there's actually a conflict
+  if (areCustomizationsEqual(local, remote)) {
+    return {
+      hasConflict: false,
+      resolved: remote,
+      resolution: 'no_conflict'
+    };
+  }
+
+  let resolved;
+  let resolution;
+
+  switch (strategy) {
+    case ConflictResolutionStrategy.LOCAL_WINS:
+      resolved = { ...local, conflictResolution: 'local_wins', source: 'local' };
+      resolution = 'local_wins';
+      break;
+
+    case ConflictResolutionStrategy.REMOTE_WINS:
+      resolved = { ...remote, conflictResolution: 'remote_wins', source: 'dataverse' };
+      resolution = 'remote_wins';
+      break;
+
+    case ConflictResolutionStrategy.NEWEST_WINS:
+      if (localTime > remoteTime) {
+        resolved = { ...local, conflictResolution: 'local_newer', source: 'local' };
+        resolution = 'local_newer';
+      } else {
+        resolved = { ...remote, conflictResolution: 'remote_newer', source: 'dataverse' };
+        resolution = 'remote_newer';
+      }
+      break;
+
+    case ConflictResolutionStrategy.MERGE:
+      // Simple merge - combine CSS and keep newest of other properties
+      resolved = {
+        ...remote,
+        name: localTime > remoteTime ? local.name : remote.name,
+        css: mergeCss(local.css, remote.css),
+        pseudoClasses: { ...(remote.pseudoClasses || {}), ...(local.pseudoClasses || {}) },
+        enabled: local.enabled && remote.enabled,
+        priority: Math.max(local.priority || 1, remote.priority || 1),
+        conflictResolution: 'merged',
+        source: 'merged',
+        mergedAt: new Date().toISOString()
+      };
+      resolution = 'merged';
+      break;
+
+    default:
+      // Default to remote wins
+      resolved = { ...remote, conflictResolution: 'default_remote', source: 'dataverse' };
+      resolution = 'default_remote';
+  }
+
+  return {
+    hasConflict: true,
+    resolved,
+    resolution,
+    localTime,
+    remoteTime
+  };
+}
+
+// Merge CSS strings
+function mergeCss(css1, css2) {
+  if (!css1) return css2;
+  if (!css2) return css1;
+  if (css1 === css2) return css1;
+
+  // Simple merge - combine both with a comment separator
+  return `/* === Local CSS === */\n${css1}\n\n/* === Remote CSS === */\n${css2}`;
+}
+
+// Get conflict resolution strategy from settings
+async function getConflictResolutionStrategy() {
+  try {
+    const { conflictResolution } = await chrome.storage.sync.get('conflictResolution');
+    return conflictResolution || ConflictResolutionStrategy.NEWEST_WINS;
+  } catch (error) {
+    console.error('Error getting conflict resolution strategy:', error);
+    return ConflictResolutionStrategy.NEWEST_WINS;
+  }
+}
+
+// =============================================================================
+// DATAVERSE SYNCHRONIZATION
+// =============================================================================
+
 // Dataverse synchronization functions
 async function syncToDataverse(authToken) {
   try {
@@ -983,33 +1118,81 @@ async function syncFromDataverse() {
       dataverseId: record[`${tableName}id`]
     }));
 
-    // Merge with local customizations (Dataverse takes precedence)
+    // Get local customizations and conflict resolution strategy
     const { customizations: localCustomizations = [] } = await chrome.storage.local.get('customizations');
+    const strategy = await getConflictResolutionStrategy();
     
-    // Create a map of Dataverse customizations by ID
-    const dataverseMap = new Map(customizations.map(c => [c.id, c]));
+    // Create maps for efficient lookup
+    const localMap = new Map(localCustomizations.map(c => [c.id, c]));
+    const remoteMap = new Map(customizations.map(c => [c.id, c]));
     
-    // Keep local customizations that don't exist in Dataverse
-    const localOnly = localCustomizations.filter(local => 
-      !local.source || local.source === 'local'
-    );
+    // Process conflicts and merge
+    const mergedCustomizations = [];
+    const conflicts = [];
+    const resolutions = [];
+    
+    // Process all unique IDs
+    const allIds = new Set([...localMap.keys(), ...remoteMap.keys()]);
+    
+    for (const id of allIds) {
+      const local = localMap.get(id);
+      const remote = remoteMap.get(id);
+      
+      if (local && remote) {
+        // Both exist - potential conflict
+        const result = await resolveDataverseConflict(local, remote, strategy);
+        
+        if (result.hasConflict) {
+          conflicts.push({
+            id,
+            local,
+            remote,
+            resolution: result.resolution,
+            resolved: result.resolved
+          });
+          resolutions.push(result.resolution);
+        }
+        
+        mergedCustomizations.push(result.resolved);
+      } else if (local && !remote) {
+        // Only exists locally - keep it
+        mergedCustomizations.push({ ...local, source: 'local' });
+      } else if (!local && remote) {
+        // Only exists remotely - add it
+        mergedCustomizations.push({ ...remote, source: 'dataverse' });
+      }
+    }
 
-    // Merge arrays, with Dataverse taking precedence
-    const mergedCustomizations = [...customizations, ...localOnly];
+    // Store conflict resolution history if there were conflicts
+    if (conflicts.length > 0) {
+      const conflictHistory = await chrome.storage.local.get('conflictHistory') || {};
+      conflictHistory.dataverse = conflictHistory.dataverse || [];
+      conflictHistory.dataverse.push({
+        timestamp: new Date().toISOString(),
+        conflicts: conflicts.length,
+        resolutions,
+        strategy
+      });
+      await chrome.storage.local.set({ conflictHistory });
+    }
 
     // Update local storage
     await chrome.storage.local.set({
       customizations: mergedCustomizations,
       lastDataverseSync: new Date().toISOString(),
-      dataverseSyncCount: customizations.length
+      dataverseSyncCount: customizations.length,
+      lastSyncConflicts: conflicts
     });
 
     return {
       success: true,
       count: customizations.length,
       totalCount: mergedCustomizations.length,
+      conflicts: conflicts.length,
+      conflictResolutions: resolutions,
+      strategy,
       timestamp: Date.now(),
-      message: `Synced ${customizations.length} customizations from Dataverse`
+      message: `Synced ${customizations.length} customizations from Dataverse${conflicts.length > 0 ? ` with ${conflicts.length} conflicts resolved using ${strategy} strategy` : ''}`
     };
 
   } catch (error) {
@@ -1020,6 +1203,38 @@ async function syncFromDataverse() {
 
 async function syncCustomizationToDataverse(customization, authToken, orgUrl, tableName) {
   try {
+    // Check if record already exists
+    const existingRecord = await findExistingDataverseRecord(customization.id, authToken, orgUrl, tableName);
+    
+    // If it exists, check for conflicts
+    if (existingRecord && existingRecord.data) {
+      const strategy = await getConflictResolutionStrategy();
+      
+      // Transform the existing Dataverse record to local format for comparison
+      const remoteCustomization = {
+        id: existingRecord.data.cr123_customizationid,
+        name: existingRecord.data.cr123_name,
+        selector: existingRecord.data.cr123_selector,
+        css: existingRecord.data.cr123_css || '',
+        enabled: existingRecord.data.cr123_enabled,
+        targetUrl: existingRecord.data.cr123_targeturl || '',
+        priority: existingRecord.data.cr123_priority || 1,
+        category: existingRecord.data.cr123_category || 'General',
+        pseudoClasses: existingRecord.data.cr123_pseudoclasses ? JSON.parse(existingRecord.data.cr123_pseudoclasses) : {},
+        modifiedOn: existingRecord.data.modifiedon
+      };
+      
+      // Check for conflicts
+      const conflictResult = await resolveDataverseConflict(customization, remoteCustomization, strategy);
+      
+      if (conflictResult.hasConflict) {
+        console.log(`Conflict detected for ${customization.name}, resolved with: ${conflictResult.resolution}`);
+        
+        // Use the resolved version
+        customization = conflictResult.resolved;
+      }
+    }
+    
     // Prepare data for Dataverse custom table
     const dataverseRecord = {
       'cr123_customizationid': customization.id,
@@ -1035,9 +1250,6 @@ async function syncCustomizationToDataverse(customization, authToken, orgUrl, ta
       'cr123_pseudoclasses': customization.pseudoClasses ? JSON.stringify(customization.pseudoClasses) : null
     };
 
-    // Check if record already exists
-    const existingRecord = await findExistingDataverseRecord(customization.id, authToken, orgUrl, tableName);
-
     let response;
     if (existingRecord) {
       // Update existing record
@@ -1047,7 +1259,8 @@ async function syncCustomizationToDataverse(customization, authToken, orgUrl, ta
           'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json',
           'OData-MaxVersion': '4.0',
-          'OData-Version': '4.0'
+          'OData-Version': '4.0',
+          'If-Match': '*' // Force update regardless of ETag
         },
         body: JSON.stringify(dataverseRecord)
       });
@@ -1068,10 +1281,12 @@ async function syncCustomizationToDataverse(customization, authToken, orgUrl, ta
     }
 
     if (!response.ok) {
-      throw new Error(`Dataverse API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Dataverse API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     console.log(`Successfully synced customization ${customization.name} to Dataverse`);
+    return { success: true, action: existingRecord ? 'updated' : 'created' };
 
   } catch (error) {
     console.error(`Error syncing customization ${customization.name} to Dataverse:`, error);
@@ -1082,7 +1297,7 @@ async function syncCustomizationToDataverse(customization, authToken, orgUrl, ta
 async function findExistingDataverseRecord(externalId, authToken, orgUrl, tableName) {
   try {
     const response = await fetch(
-      `${orgUrl}/api/data/v9.2/${tableName}?$filter=cr123_externalid eq '${externalId}'&$select=${tableName}id`,
+      `${orgUrl}/api/data/v9.2/${tableName}?$filter=cr123_customizationid eq '${externalId}'&$select=${tableName}id,cr123_customizationid,cr123_name,cr123_selector,cr123_css,cr123_javascript,cr123_enabled,cr123_description,cr123_targeturl,cr123_priority,cr123_category,cr123_pseudoclasses,modifiedon`,
       {
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -1098,7 +1313,14 @@ async function findExistingDataverseRecord(externalId, authToken, orgUrl, tableN
     }
 
     const data = await response.json();
-    return data.value && data.value.length > 0 ? { id: data.value[0][`${tableName}id`] } : null;
+    if (data.value && data.value.length > 0) {
+      const record = data.value[0];
+      return {
+        id: record[`${tableName}id`],
+        data: record // Return full data for conflict resolution
+      };
+    }
+    return null;
 
   } catch (error) {
     console.error('Error finding existing Dataverse record:', error);
