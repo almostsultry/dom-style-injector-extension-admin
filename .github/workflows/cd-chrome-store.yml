@@ -1,8 +1,10 @@
 name: Deploy to Chrome Web Store
 
+# TEMPORARILY DISABLED: CI/CD disabled until Implementation Plan is complete
+# on:
+#   release:
+#     types: [published]
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       version_type:

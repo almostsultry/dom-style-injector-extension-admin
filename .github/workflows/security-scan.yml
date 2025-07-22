@@ -1,19 +1,21 @@
 name: Security Vulnerability Scanning
 
+# TEMPORARILY DISABLED: CI/CD disabled until Implementation Plan is complete
+# on:
+#   schedule:
+#     # Run every day at 2 AM UTC
+#     - cron: '0 2 * * *'
+#   push:
+#     branches: [ main, develop ]
+#     paths:
+#       - 'package.json'
+#       - 'package-lock.json'
+#       - 'src/**'
+#       - '.github/workflows/security-scan.yml'
+#   pull_request:
+#     branches: [ main, develop ]
 on:
-  schedule:
-    # Run every day at 2 AM UTC
-    - cron: '0 2 * * *'
-  push:
-    branches: [ main, develop ]
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'src/**'
-      - '.github/workflows/security-scan.yml'
-  pull_request:
-    branches: [ main, develop ]
-  workflow_dispatch:
+  workflow_dispatch:  # Only allow manual triggering
 
 env:
   NODE_VERSION: '18.x'

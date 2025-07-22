@@ -1,10 +1,13 @@
 name: Continuous Integration
 
+# TEMPORARILY DISABLED: CI/CD disabled until Implementation Plan is complete
+# on:
+#   push:
+#     branches: [ main, develop ]
+#   pull_request:
+#     branches: [ main, develop ]
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:  # Only allow manual triggering
 
 env:
   NODE_VERSION: '18.x'
