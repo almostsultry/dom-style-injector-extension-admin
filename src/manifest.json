@@ -8,7 +8,8 @@
     "identity",
     "tabs",
     "alarms",
-    "contextMenus"
+    "contextMenus",
+    "notifications"
   ],
   "host_permissions": [
     "https://*.dynamics.com/*",
@@ -19,7 +20,8 @@
     "https://*.crm5.dynamics.com/*",
     "https://login.microsoftonline.com/*",
     "https://graph.microsoft.com/*",
-    "https://*.sharepoint.com/*"
+    "https://*.sharepoint.com/*",
+    "https://admin.microsoft.com/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -58,7 +60,9 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "assets/*"
+        "assets/*",
+        "license-required.html",
+        "scripts/license-required.js"
       ],
       "matches": [
         "<all_urls>"

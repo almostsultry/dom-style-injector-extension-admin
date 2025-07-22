@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Required - DOM Style Injector</title>
+    <link rel="stylesheet" href="styles/common.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .license-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        .icon-lock {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: #f3f4f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+        
+        h1 {
+            margin: 0 0 20px;
+            color: #1a202c;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #718096;
+            font-size: 18px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .license-status {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        
+        .license-status.valid {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+        
+        .license-status h3 {
+            margin: 0 0 10px;
+            color: #92400e;
+            font-size: 16px;
+        }
+        
+        .license-status.valid h3 {
+            color: #065f46;
+        }
+        
+        .license-info {
+            font-size: 14px;
+            color: #4b5563;
+            margin: 10px 0;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        
+        .loading {
+            display: none;
+            margin: 20px 0;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .error-message {
+            color: #dc2626;
+            margin: 20px 0;
+            padding: 15px;
+            background: #fee2e2;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .error-message.active {
+            display: block;
+        }
+        
+        .features-list {
+            text-align: left;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        
+        .features-list h3 {
+            margin: 0 0 15px;
+            color: #1a202c;
+            font-size: 18px;
+        }
+        
+        .features-list ul {
+            margin: 0;
+            padding-left: 25px;
+        }
+        
+        .features-list li {
+            margin: 8px 0;
+            color: #4b5563;
+        }
+        
+        .tenant-info {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="license-container">
+        <div class="icon-lock">🔒</div>
+        
+        <h1>License Required</h1>
+        
+        <p class="subtitle">
+            DOM Style Injector Extension requires a valid license purchased through 
+            Microsoft 365 Admin Center to ensure secure and compliant usage in your organization.
+        </p>
+        
+        <div id="licenseStatus" class="license-status">
+            <h3>Checking License Status...</h3>
+            <div class="loading active">
+                <span>Validating your Microsoft 365 subscription...</span>
+            </div>
+        </div>
+        
+        <div id="errorMessage" class="error-message"></div>
+        
+        <div class="features-list">
+            <h3>What's included with a license:</h3>
+            <ul>
+                <li>Unlimited CSS customizations for Dynamics 365</li>
+                <li>Automatic synchronization across your organization</li>
+                <li>Conflict resolution and version control</li>
+                <li>Role-based access control (RBAC)</li>
+                <li>Priority support and updates</li>
+                <li>Advanced features like AI assistance and documentation</li>
+            </ul>
+        </div>
+        
+        <div class="action-buttons">
+            <button id="purchaseLicense" class="btn btn-primary">
+                Purchase License
+            </button>
+            <button id="checkLicense" class="btn btn-secondary">
+                Check License Status
+            </button>
+        </div>
+        
+        <div class="tenant-info">
+            <div id="tenantInfo"></div>
+            <div id="userInfo"></div>
+        </div>
+    </div>
+    
+    <script src="scripts/license-required.js"></script>
+</body>
+</html>

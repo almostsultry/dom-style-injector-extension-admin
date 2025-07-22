@@ -506,17 +506,53 @@ function validateToken(token) {
 
 async function cacheToken(token, expiresIn) {
     const expirationTime = Date.now() + (expiresIn * 1000);
+    
+    // Check if this is a KMSI scenario based on token lifetime
+    const eightHoursInSeconds = 8 * 60 * 60;
+    const isKMSI = expiresIn > eightHoursInSeconds;
+    
+    if (isKMSI) {
+        // Token expires in more than 8 hours, likely KMSI is active
+        console.log('KMSI detected - token expires in', Math.floor(expiresIn / 3600), 'hours');
+        
+        // Store in local storage for persistence across browser sessions
+        await chrome.storage.local.set({
+            kmsiToken: token,
+            kmsiExpiration: expirationTime,
+            kmsiEnabled: true,
+            kmsiTimestamp: Date.now()
+        });
+    }
 
+    // Always store in session storage for current session
     await chrome.storage.session.set({
         authToken: token,
         tokenExpiration: expirationTime
     });
 
     console.log('Token cached, expires at:', new Date(expirationTime).toLocaleString());
+    if (isKMSI) {
+        console.log('Keep Me Signed In is active - token will persist across browser sessions');
+    }
 }
 
 async function getCachedToken() {
     try {
+        // First check for KMSI token in local storage
+        const { kmsiToken, kmsiExpiration, kmsiEnabled } = await chrome.storage.local.get(['kmsiToken', 'kmsiExpiration', 'kmsiEnabled']);
+        
+        if (kmsiEnabled && kmsiToken && kmsiExpiration) {
+            const bufferTime = 5 * 60 * 1000; // 5 minutes
+            if (kmsiExpiration - bufferTime > Date.now()) {
+                console.log('Found valid KMSI token (Keep Me Signed In active)');
+                return kmsiToken;
+            } else {
+                console.log('KMSI token expired');
+                await chrome.storage.local.remove(['kmsiToken', 'kmsiExpiration', 'kmsiEnabled']);
+            }
+        }
+        
+        // Fall back to session storage
         const { authToken, tokenExpiration } = await chrome.storage.session.get(['authToken', 'tokenExpiration']);
 
         if (authToken && tokenExpiration) {
@@ -538,7 +574,7 @@ async function getCachedToken() {
 
 async function clearAuthCache() {
     await chrome.storage.session.remove(['authToken', 'tokenExpiration']);
-    await chrome.storage.local.remove(['userRole']);
+    await chrome.storage.local.remove(['userRole', 'kmsiToken', 'kmsiExpiration', 'kmsiEnabled', 'kmsiTimestamp']);
     
     if (msalAvailable) {
         try {
@@ -549,7 +585,7 @@ async function clearAuthCache() {
         }
     }
     
-    console.log('Authentication cache cleared');
+    console.log('Authentication cache cleared (including KMSI data)');
 }
 
 // =============================================================================
@@ -590,6 +626,15 @@ async function initializePopup() {
     renderView('loader-view');
 
     try {
+        // Check license first
+        const licenseCheck = await chrome.runtime.sendMessage({ action: 'checkLicense' });
+        
+        if (!licenseCheck.success || !licenseCheck.licensed) {
+            // Redirect to license required page
+            window.location.href = chrome.runtime.getURL('license-required.html');
+            return;
+        }
+        
         // Initialize MSAL if available
         await initializeMSALIfAvailable();
         await initializeMsal(); // Legacy fallback

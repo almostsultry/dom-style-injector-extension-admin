@@ -10,6 +10,63 @@ let isInitialized = false;
 const SYNC_INTERVAL_MINUTES = 60;
 const AUTH_CACHE_DURATION = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
 
+// KMSI helper functions - inline since we can't import in service worker
+const KMSI = {
+  async checkStatus() {
+    try {
+      const { kmsiToken, kmsiExpiration, kmsiEnabled } = await chrome.storage.local.get(['kmsiToken', 'kmsiExpiration', 'kmsiEnabled']);
+      
+      if (kmsiEnabled && kmsiToken && kmsiExpiration) {
+        const bufferTime = 5 * 60 * 1000; // 5 minute buffer
+        if (kmsiExpiration - bufferTime > Date.now()) {
+          console.log('Active KMSI session found, expires:', new Date(kmsiExpiration).toLocaleString());
+          return {
+            active: true,
+            token: kmsiToken,
+            expiresAt: kmsiExpiration
+          };
+        }
+      }
+      
+      return { active: false };
+    } catch (error) {
+      console.error('Error checking KMSI status:', error);
+      return { active: false };
+    }
+  },
+  
+  async persistToken(token, expiresIn, isKMSI = false) {
+    const expirationTime = Date.now() + (expiresIn * 1000);
+    
+    if (isKMSI) {
+      await chrome.storage.local.set({
+        kmsiToken: token,
+        kmsiExpiration: expirationTime,
+        kmsiEnabled: true,
+        kmsiTimestamp: Date.now()
+      });
+      
+      console.log('Token persisted with KMSI, expires:', new Date(expirationTime).toLocaleString());
+    }
+    
+    await chrome.storage.session.set({
+      authToken: token,
+      tokenExpiration: expirationTime
+    });
+  },
+  
+  async clear() {
+    await chrome.storage.local.remove(['kmsiToken', 'kmsiExpiration', 'kmsiEnabled', 'kmsiTimestamp']);
+    console.log('KMSI session cleared');
+  },
+  
+  shouldUseKMSI(expiresIn) {
+    // If token expires in more than 8 hours, likely user selected "keep me signed in"
+    const eightHoursInSeconds = 8 * 60 * 60;
+    return expiresIn > eightHoursInSeconds;
+  }
+};
+
 // Service worker lifecycle events
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('Extension installed/updated:', details);
@@ -52,13 +109,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Main message handler
 async function handleMessage(request) {
+  // Always allow license checking
+  if (request.action === 'checkLicense') {
+    return await handleCheckLicense(request);
+  }
+  
+  // Always allow authentication actions
+  const authActions = ['authenticate', 'get-auth-status', 'get-cached-token', 'refresh-token'];
+  if (authActions.includes(request.action)) {
+    switch (request.action) {
+      case 'authenticate':
+        return await handleAuthentication(request);
+      case 'get-auth-status':
+        return await handleGetAuthStatus();
+      case 'get-cached-token':
+        return await handleGetCachedToken();
+      case 'refresh-token':
+        return await handleRefreshToken();
+    }
+  }
+  
+  // Check license for all other actions
+  const { licenseStatus } = await chrome.storage.local.get('licenseStatus');
+  
+  if (!licenseStatus || !licenseStatus.valid) {
+    console.warn(`Action blocked due to invalid license: ${request.action}`);
+    return {
+      success: false,
+      error: 'Valid license required',
+      requiresLicense: true,
+      action: request.action
+    };
+  }
+  
+  // License is valid, proceed with action
   switch (request.action) {
-    case 'authenticate':
-      return await handleAuthentication(request);
-
-    case 'get-auth-status':
-      return await handleGetAuthStatus();
-
     case 'checkUserRole':
       return await handleCheckUserRole(request);
 
@@ -83,15 +168,6 @@ async function handleMessage(request) {
     case 'background-sync':
       return await handleBackgroundSync();
 
-    case 'get-cached-token':
-      return await handleGetCachedToken();
-
-    case 'refresh-token':
-      return await handleRefreshToken();
-    
-    case 'checkLicense':
-      return await handleCheckLicense(request);
-
     default:
       console.log('Unknown message action:', request.action);
       return { success: false, error: 'Unknown action: ' + request.action };
@@ -110,14 +186,16 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       case 'token-refresh':
         await refreshAuthToken();
         break;
+      case 'kmsi-token-refresh':
+        console.log('KMSI token refresh triggered');
+        await refreshKMSIToken();
+        break;
       case 'cleanup-storage':
         await cleanupStorage();
         break;
       case 'license-check':
-        const { licenseEndpoint } = await chrome.storage.sync.get('licenseEndpoint');
-        if (licenseEndpoint) {
-          await handleCheckLicense({ endpoint: licenseEndpoint });
-        }
+        console.log('Periodic license check triggered');
+        await handleCheckLicense({});
         break;
       default:
         console.log('Unknown alarm:', alarm.name);
@@ -188,6 +266,24 @@ async function initializeExtension() {
   console.log('Initializing extension');
   
   try {
+    // Check for KMSI tokens on startup
+    const kmsiStatus = await KMSI.checkStatus();
+    if (kmsiStatus.active) {
+      console.log('Restoring KMSI session from previous authentication');
+      // Restore authentication status
+      await chrome.storage.local.set({
+        isAuthenticated: true,
+        authTimestamp: Date.now(),
+        kmsiRestored: true
+      });
+      
+      // Schedule token refresh before expiration
+      const timeUntilRefresh = kmsiStatus.expiresAt - Date.now() - (30 * 60 * 1000); // 30 min before expiry
+      if (timeUntilRefresh > 0) {
+        chrome.alarms.create('kmsi-token-refresh', { delayInMinutes: timeUntilRefresh / 60000 });
+      }
+    }
+    
     // Check if sync on startup is enabled
     const { syncOnStartup, licenseEndpoint } = await chrome.storage.sync.get(['syncOnStartup', 'licenseEndpoint']);
     
@@ -196,11 +292,9 @@ async function initializeExtension() {
       await performPeriodicSync();
     }
     
-    // Check license on startup if configured
-    if (licenseEndpoint) {
-      console.log('Checking license on startup');
-      await handleCheckLicense({ endpoint: licenseEndpoint });
-    }
+    // Check license on startup
+    console.log('Checking license on startup');
+    await handleCheckLicense({});
   } catch (error) {
     console.error('Initialization sync error:', error);
   }
@@ -324,13 +418,47 @@ async function handleAuthentication() {
     // Validate token and get user information
     const userInfo = await validateTokenAndGetUserInfo(authToken);
 
+    // Check token expiration to determine if KMSI should be used
+    let expiresIn = 3600; // Default 1 hour
+    let isKMSI = false;
+    
+    try {
+      // Decode JWT token to get expiration
+      const tokenParts = authToken.split('.');
+      if (tokenParts.length === 3) {
+        const base64Payload = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(globalThis.atob(base64Payload));
+        
+        if (payload.exp) {
+          const expirationTime = payload.exp * 1000; // Convert to milliseconds
+          expiresIn = Math.floor((expirationTime - Date.now()) / 1000);
+          
+          // Check if this is a KMSI token (longer than 8 hours)
+          isKMSI = KMSI.shouldUseKMSI(expiresIn);
+          
+          if (isKMSI) {
+            console.log('KMSI detected - token expires in', Math.floor(expiresIn / 3600), 'hours');
+            await KMSI.persistToken(authToken, expiresIn, true);
+          } else {
+            console.log('Standard token - expires in', Math.floor(expiresIn / 3600), 'hours');
+            await KMSI.persistToken(authToken, expiresIn, false);
+          }
+        }
+      }
+    } catch (decodeError) {
+      console.warn('Could not decode token expiration:', decodeError);
+      // Still persist token in session storage
+      await KMSI.persistToken(authToken, expiresIn, false);
+    }
+
     // Store authentication info
     await chrome.storage.local.set({
       isAuthenticated: true,
       authTimestamp: Date.now(),
       tokenLastRefresh: Date.now(),
       authMethod: authMethod,
-      userInfo: userInfo
+      userInfo: userInfo,
+      isKMSI: isKMSI
     });
 
     console.log('Authentication successful for user:', userInfo.displayName || userInfo.userPrincipalName);
@@ -340,7 +468,9 @@ async function handleAuthentication() {
       token: authToken,
       userInfo: userInfo,
       authMethod: authMethod,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      isKMSI: isKMSI,
+      expiresIn: expiresIn
     };
 
   } catch (error) {
@@ -528,13 +658,21 @@ async function handleLogout() {
       });
     }
 
+    // Clear KMSI data
+    await KMSI.clear();
+    
+    // Clear session storage
+    await chrome.storage.session.clear();
+    
     // Clear all authentication data
     await chrome.storage.local.remove([
       'isAuthenticated',
       'userInfo',
       'authTimestamp',
       'tokenLastRefresh',
-      'userRole'
+      'userRole',
+      'userRoleDetails',
+      'kmsiRestored'
     ]);
 
     // Clear sync alarms
@@ -631,6 +769,25 @@ async function handleBackgroundSync() {
 // Token management functions
 async function handleGetCachedToken() {
   try {
+    // First check for KMSI token
+    const kmsiStatus = await KMSI.checkStatus();
+    if (kmsiStatus.active) {
+      console.log('Using KMSI token');
+      return { success: true, token: kmsiStatus.token, kmsi: true };
+    }
+    
+    // Then check session storage token
+    const { authToken, tokenExpiration } = await chrome.storage.session.get(['authToken', 'tokenExpiration']);
+    
+    if (authToken && tokenExpiration) {
+      const bufferTime = 5 * 60 * 1000; // 5 minutes
+      if (tokenExpiration - bufferTime > Date.now()) {
+        console.log('Using session token');
+        return { success: true, token: authToken, kmsi: false };
+      }
+    }
+    
+    // Fall back to checking regular auth status
     const { isAuthenticated, authTimestamp } = await chrome.storage.local.get(['isAuthenticated', 'authTimestamp']);
 
     if (!isAuthenticated) {
@@ -659,7 +816,7 @@ async function handleGetCachedToken() {
       });
     });
 
-    return { success: true, token: authToken };
+    return { success: true, token: authToken, kmsi: false };
 
   } catch (error) {
     console.error('Get cached token error:', error);
@@ -687,6 +844,34 @@ async function handleRefreshToken() {
 // Utility functions
 async function getAuthenticationStatus() {
   try {
+    // Check for KMSI token first
+    const kmsiStatus = await KMSI.checkStatus();
+    if (kmsiStatus.active) {
+      return {
+        isAuthenticated: true,
+        tokenAge: 0,
+        requiresRefresh: false,
+        isKMSI: true,
+        expiresAt: kmsiStatus.expiresAt
+      };
+    }
+    
+    // Check session storage token
+    const { authToken, tokenExpiration } = await chrome.storage.session.get(['authToken', 'tokenExpiration']);
+    
+    if (authToken && tokenExpiration) {
+      const bufferTime = 5 * 60 * 1000; // 5 minutes
+      if (tokenExpiration - bufferTime > Date.now()) {
+        return {
+          isAuthenticated: true,
+          tokenAge: Date.now() - (tokenExpiration - (3600 * 1000)), // Approximate age
+          requiresRefresh: false,
+          isKMSI: false
+        };
+      }
+    }
+    
+    // Fall back to regular auth check
     const { isAuthenticated, authTimestamp } = await chrome.storage.local.get(['isAuthenticated', 'authTimestamp']);
 
     if (!isAuthenticated || !authTimestamp) {
@@ -700,7 +885,8 @@ async function getAuthenticationStatus() {
     return {
       isAuthenticated: !isExpired,
       tokenAge: authAge,
-      requiresRefresh: isExpired
+      requiresRefresh: isExpired,
+      isKMSI: false
     };
 
   } catch (error) {
@@ -1704,6 +1890,78 @@ async function refreshAuthToken() {
   }
 }
 
+async function refreshKMSIToken() {
+  try {
+    console.log('Refreshing KMSI token...');
+    
+    // Check if we still have a valid KMSI session
+    const kmsiStatus = await KMSI.checkStatus();
+    if (!kmsiStatus.active) {
+      console.log('KMSI session no longer active, skipping refresh');
+      return;
+    }
+    
+    // Get fresh token
+    const manifest = chrome.runtime.getManifest();
+    if (!manifest.permissions?.includes('identity')) {
+      console.error('Identity permission not available for KMSI refresh');
+      return;
+    }
+    
+    const authToken = await new Promise((resolve, reject) => {
+      chrome.identity.getAuthToken({ interactive: false }, (token) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(token);
+        }
+      });
+    });
+    
+    if (authToken) {
+      // Decode token to get new expiration
+      let expiresIn = 3600; // Default 1 hour
+      
+      try {
+        const tokenParts = authToken.split('.');
+        if (tokenParts.length === 3) {
+          const base64Payload = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(globalThis.atob(base64Payload));
+          
+          if (payload.exp) {
+            const expirationTime = payload.exp * 1000;
+            expiresIn = Math.floor((expirationTime - Date.now()) / 1000);
+          }
+        }
+      } catch (error) {
+        console.warn('Could not decode refreshed token:', error);
+      }
+      
+      // Check if it's still a KMSI token
+      const isKMSI = KMSI.shouldUseKMSI(expiresIn);
+      
+      if (isKMSI) {
+        await KMSI.persistToken(authToken, expiresIn, true);
+        console.log('KMSI token refreshed, expires in', Math.floor(expiresIn / 3600), 'hours');
+        
+        // Schedule next refresh
+        const timeUntilRefresh = expiresIn - (30 * 60); // 30 min before expiry
+        if (timeUntilRefresh > 0) {
+          chrome.alarms.create('kmsi-token-refresh', { delayInMinutes: timeUntilRefresh / 60 });
+        }
+      } else {
+        console.log('Refreshed token is not KMSI, clearing KMSI data');
+        await KMSI.clear();
+      }
+    }
+    
+  } catch (error) {
+    console.error('KMSI token refresh error:', error);
+    // Clear KMSI data on error
+    await KMSI.clear();
+  }
+}
+
 async function performMigration(previousVersion) {
   console.log(`Performing migration from version ${previousVersion}`);
 
@@ -1821,90 +2079,434 @@ initializeExtension().catch(error => {
   console.error('Failed to initialize extension:', error);
 });
 
-// License checking functionality
-async function handleCheckLicense(request) {
-  try {
-    const { endpoint } = request;
+// License checking functionality - Microsoft 365 Admin Center Integration
+class LicenseValidator {
+  constructor() {
+    // Microsoft Graph endpoints for license validation
+    this.graphEndpoint = 'https://graph.microsoft.com/v1.0';
+    this.licenseServicePlanId = 'YOUR_SERVICE_PLAN_ID'; // Will be assigned by Microsoft when you publish to AppSource
+    this.skuId = 'YOUR_SKU_ID'; // Will be assigned by Microsoft
+    this.publisherId = 'YOUR_PUBLISHER_ID'; // Your Microsoft Partner Center Publisher ID
+  }
+
+  async validateUserLicense(accessToken) {
+    try {
+      console.log('Validating Microsoft 365 license...');
+
+      // Get current user's assigned licenses
+      const userLicenses = await this.getUserLicenses(accessToken);
+      
+      // Check if user has the specific license for this extension
+      const hasValidLicense = this.checkForValidLicense(userLicenses);
+      
+      if (hasValidLicense) {
+        // Get license details
+        const licenseDetails = await this.getLicenseDetails(accessToken, hasValidLicense);
+        
+        // Verify license is active and not expired
+        const isActive = this.verifyLicenseStatus(licenseDetails);
+        
+        return {
+          valid: isActive,
+          licensed: true,
+          details: licenseDetails,
+          expiresOn: licenseDetails.expiryDate,
+          assignedOn: licenseDetails.assignedDate,
+          licenseType: licenseDetails.skuPartNumber,
+          tenantId: licenseDetails.tenantId
+        };
+      }
+      
+      // Check if tenant has available licenses
+      const tenantLicenses = await this.getTenantLicenses(accessToken);
+      const hasUnassignedLicenses = this.checkForUnassignedLicenses(tenantLicenses);
+      
+      return {
+        valid: false,
+        licensed: false,
+        hasUnassignedLicenses: hasUnassignedLicenses,
+        message: hasUnassignedLicenses 
+          ? 'License available but not assigned. Contact your administrator.'
+          : 'No valid license found. Purchase through Microsoft 365 Admin Center.'
+      };
+      
+    } catch (error) {
+      console.error('License validation error:', error);
+      
+      // Handle specific error cases
+      if (error.status === 403) {
+        return {
+          valid: false,
+          error: 'Insufficient permissions to validate license',
+          requiresConsent: true
+        };
+      }
+      
+      return {
+        valid: false,
+        error: error.message,
+        fallbackToCache: true
+      };
+    }
+  }
+
+  async getUserLicenses(accessToken) {
+    const response = await fetch(`${this.graphEndpoint}/me/licenseDetails`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get user licenses: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.value || [];
+  }
+
+  async getTenantLicenses(accessToken) {
+    try {
+      const response = await fetch(`${this.graphEndpoint}/subscribedSkus`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get tenant licenses: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.value || [];
+    } catch (error) {
+      console.warn('Could not fetch tenant licenses:', error);
+      return [];
+    }
+  }
+
+  checkForValidLicense(userLicenses) {
+    return userLicenses.find(license => {
+      // Check if license contains our service plan
+      const hasServicePlan = license.servicePlans?.some(plan => 
+        plan.servicePlanId === this.licenseServicePlanId &&
+        plan.provisioningStatus === 'Success'
+      );
+      
+      return hasServicePlan || license.skuId === this.skuId;
+    });
+  }
+
+  checkForUnassignedLicenses(tenantLicenses) {
+    const extensionSku = tenantLicenses.find(sku => 
+      sku.skuId === this.skuId || 
+      sku.servicePlans?.some(plan => plan.servicePlanId === this.licenseServicePlanId)
+    );
     
-    if (!endpoint) {
-      return { success: false, error: 'License endpoint not configured' };
+    if (extensionSku) {
+      const available = extensionSku.prepaidUnits.enabled - extensionSku.consumedUnits;
+      return available > 0;
     }
     
-    // Get tenant ID from D365 URL
-    const { d365OrgUrl } = await chrome.storage.sync.get('d365OrgUrl');
-    if (!d365OrgUrl) {
-      return { success: false, error: 'D365 Organization URL not configured' };
+    return false;
+  }
+
+  async getLicenseDetails(accessToken, license) {
+    try {
+      // Get additional details about the license
+      const response = await fetch(`${this.graphEndpoint}/me/licenseDetails/${license.id}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get license details');
+      }
+
+      const details = await response.json();
+      
+      // Get tenant information
+      const tenantInfo = await this.getTenantInfo(accessToken);
+      
+      return {
+        ...details,
+        tenantId: tenantInfo.id,
+        tenantName: tenantInfo.displayName,
+        assignedDate: license.assignedDateTime,
+        expiryDate: this.calculateExpiryDate(license),
+        features: this.getEnabledFeatures(license.servicePlans)
+      };
+    } catch (error) {
+      console.warn('Could not fetch detailed license info:', error);
+      return license;
+    }
+  }
+
+  async getTenantInfo(accessToken) {
+    try {
+      const response = await fetch(`${this.graphEndpoint}/organization`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get tenant info');
+      }
+
+      const data = await response.json();
+      return data.value[0] || {};
+    } catch (error) {
+      console.warn('Could not fetch tenant info:', error);
+      return {};
+    }
+  }
+
+  verifyLicenseStatus(licenseDetails) {
+    // Check if license has expiry date
+    if (licenseDetails.expiryDate) {
+      const expiryDate = new Date(licenseDetails.expiryDate);
+      if (expiryDate < new Date()) {
+        return false;
+      }
     }
     
-    // Extract tenant from D365 URL
-    const urlMatch = d365OrgUrl.match(/https:\/\/([\w-]+)\./);
-    const tenantId = urlMatch ? urlMatch[1] : null;
+    // Check service plan status
+    const activePlans = licenseDetails.servicePlans?.filter(plan => 
+      plan.provisioningStatus === 'Success' &&
+      plan.servicePlanId === this.licenseServicePlanId
+    );
     
-    // Get current user info
-    const { userRole } = await chrome.storage.local.get('userRole');
-    const userId = userRole?.userId || 'unknown';
+    return activePlans && activePlans.length > 0;
+  }
+
+  calculateExpiryDate(license) {
+    // Microsoft 365 licenses typically don't have explicit expiry in the API
+    // They're subscription-based and renew monthly/annually
+    // You might need to implement custom logic based on your agreement with Microsoft
     
-    // Prepare license check request
-    const licenseRequest = {
-      tenantId,
-      userId,
-      extensionId: chrome.runtime.id,
-      extensionVersion: chrome.runtime.getManifest().version,
-      timestamp: Date.now()
+    // For now, we'll assume license is valid as long as it's assigned
+    return null;
+  }
+
+  getEnabledFeatures(servicePlans) {
+    const features = {
+      maxCustomizations: 1000, // Default limits
+      syncEnabled: true,
+      advancedFeatures: false,
+      supportLevel: 'standard'
     };
     
-    // Call license endpoint
-    const response = await fetch(endpoint + '/validate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(licenseRequest)
+    // Map service plans to features
+    // This would be customized based on your license tiers
+    servicePlans?.forEach(plan => {
+      if (plan.servicePlanName?.includes('PREMIUM')) {
+        features.maxCustomizations = -1; // Unlimited
+        features.advancedFeatures = true;
+        features.supportLevel = 'premium';
+      }
     });
     
-    if (!response.ok) {
-      throw new Error(`License server error: ${response.status}`);
+    return features;
+  }
+
+  async cacheLicenseResult(result) {
+    const cacheData = {
+      ...result,
+      cachedAt: Date.now(),
+      cacheExpiry: Date.now() + (4 * 60 * 60 * 1000) // Cache for 4 hours
+    };
+    
+    await chrome.storage.local.set({ 
+      licenseCache: cacheData,
+      lastLicenseCheck: Date.now()
+    });
+  }
+
+  async getCachedLicense() {
+    const { licenseCache } = await chrome.storage.local.get('licenseCache');
+    
+    if (licenseCache && licenseCache.cacheExpiry > Date.now()) {
+      console.log('Using cached license validation');
+      return {
+        ...licenseCache,
+        fromCache: true
+      };
     }
     
-    const licenseData = await response.json();
+    return null;
+  }
+
+  async validateOnStartup(accessToken) {
+    try {
+      // Check cache first
+      const cached = await this.getCachedLicense();
+      if (cached) {
+        return cached;
+      }
+      
+      // Perform fresh validation
+      const result = await this.validateUserLicense(accessToken);
+      
+      // Cache successful validation
+      if (result.valid) {
+        await this.cacheLicenseResult(result);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Startup license validation failed:', error);
+      
+      // Try to use cached license as fallback
+      const cached = await this.getCachedLicense();
+      if (cached) {
+        return { ...cached, fallbackUsed: true };
+      }
+      
+      return {
+        valid: false,
+        error: error.message,
+        requiresOnlineValidation: true
+      };
+    }
+  }
+}
+
+// Global license validator instance
+const licenseValidator = new LicenseValidator();
+
+async function handleCheckLicense(request) {
+  try {
+    console.log('Checking Microsoft 365 license...');
     
-    // Validate license response
-    const isValid = licenseData.valid === true && 
-                   licenseData.tenantId === tenantId &&
-                   new Date(licenseData.expirationDate) > new Date();
+    // Get access token
+    const tokenResult = await handleGetCachedToken();
+    if (!tokenResult.success || !tokenResult.token) {
+      return {
+        success: false,
+        error: 'Authentication required for license validation',
+        requiresAuth: true
+      };
+    }
+    
+    // Validate license through Microsoft 365
+    const licenseResult = await licenseValidator.validateOnStartup(tokenResult.token);
     
     // Store license status
     await chrome.storage.local.set({
       licenseStatus: {
-        valid: isValid,
-        expirationDate: licenseData.expirationDate,
-        features: licenseData.features || [],
-        lastCheck: Date.now()
+        valid: licenseResult.valid,
+        licensed: licenseResult.licensed,
+        lastChecked: Date.now(),
+        expiresOn: licenseResult.expiresOn,
+        tenantId: licenseResult.tenantId,
+        features: licenseResult.features || {},
+        message: licenseResult.message
       }
     });
     
-    // Schedule next check based on license interval
-    const { licenseCheckInterval } = await chrome.storage.sync.get('licenseCheckInterval');
-    const checkInterval = (licenseCheckInterval || 24) * 60; // Convert hours to minutes
+    // Schedule next license check
+    if (licenseResult.valid) {
+      // Check again in 12 hours
+      chrome.alarms.create('license-check', { delayInMinutes: 12 * 60 });
+    } else {
+      // Check more frequently if not licensed
+      chrome.alarms.create('license-check', { delayInMinutes: 60 });
+    }
     
-    chrome.alarms.create('license-check', {
-      delayInMinutes: checkInterval,
-      periodInMinutes: checkInterval
-    });
+    // If not licensed, show notification
+    if (!licenseResult.valid) {
+      chrome.notifications.create('license-required', {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('images/icon-128.png'),
+        title: 'License Required',
+        message: licenseResult.message || 'Please purchase a license through Microsoft 365 Admin Center',
+        buttons: [{ title: 'Open Admin Center' }],
+        requireInteraction: true
+      });
+    }
     
     return {
       success: true,
-      valid: isValid,
-      details: {
-        expirationDate: licenseData.expirationDate,
-        features: licenseData.features
-      }
+      licensed: licenseResult.valid,
+      details: licenseResult
     };
     
   } catch (error) {
     console.error('License check error:', error);
-    return { success: false, error: error.message };
+    
+    // Check cached license as fallback
+    const { licenseStatus } = await chrome.storage.local.get('licenseStatus');
+    
+    if (licenseStatus && licenseStatus.lastChecked) {
+      // Use cached license for up to 7 days
+      const cacheAge = Date.now() - licenseStatus.lastChecked;
+      const maxCacheAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+      
+      if (cacheAge < maxCacheAge) {
+        console.log('Using cached license status');
+        return {
+          success: true,
+          licensed: licenseStatus.valid,
+          fromCache: true,
+          details: licenseStatus
+        };
+      }
+    }
+    
+    return {
+      success: false,
+      error: error.message,
+      requiresOnlineCheck: true
+    };
   }
+}
+
+// Handle notification button clicks
+chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
+  if (notificationId === 'license-required' && buttonIndex === 0) {
+    // Open Microsoft 365 Admin Center
+    chrome.tabs.create({ url: 'https://admin.microsoft.com/Adminportal/Home#/licenses' });
+  }
+});
+
+// License enforcement - prevent functionality without valid license
+async function enforceLicense() {
+  const { licenseStatus } = await chrome.storage.local.get('licenseStatus');
+  
+  if (!licenseStatus || !licenseStatus.valid) {
+    // Block all functionality if not licensed
+    console.warn('Extension functionality blocked - no valid license');
+    
+    // Show license required page
+    chrome.tabs.create({ 
+      url: chrome.runtime.getURL('license-required.html') 
+    });
+    
+    return false;
+  }
+  
+  return true;
+}
+
+// Intercept all actions to check license
+async function withLicenseCheck(action, callback) {
+  const hasLicense = await enforceLicense();
+  
+  if (!hasLicense) {
+    return {
+      success: false,
+      error: 'Valid license required',
+      requiresLicense: true
+    };
+  }
+  
+  return callback();
 }
 
 console.log('DOM Style Injector: Background service worker setup completed');
