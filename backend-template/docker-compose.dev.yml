@@ -1,0 +1,49 @@
+# Development override for docker-compose
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      target: development
+    environment:
+      - NODE_ENV=development
+      - DEBUG=dom-injector:*
+      # Development Azure AD (use test app registration)
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID_DEV}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET_DEV}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID_DEV}
+      # Mock license IDs for development
+      - LICENSE_SKU_ID=DEV_SKU_ID
+      - LICENSE_SERVICE_PLAN_ID=DEV_SERVICE_PLAN_ID
+      # Development extension ID
+      - EXTENSION_ID=${EXTENSION_ID_DEV:-development-extension-id}
+      # Enable verbose logging
+      - LOG_LEVEL=debug
+    volumes:
+      # Mount entire source directory for development
+      - .:/app:ro
+      - /app/node_modules
+    command: npm run dev
+
+  # Mailhog for testing email notifications (development only)
+  mailhog:
+    image: mailhog/mailhog
+    container_name: dom-injector-mailhog
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    networks:
+      - backend-network
+
+  # Adminer for database management (development only)
+  adminer:
+    image: adminer
+    container_name: dom-injector-adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - backend-network
+    depends_on:
+      - postgres

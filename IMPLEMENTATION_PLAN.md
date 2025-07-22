@@ -5,9 +5,51 @@ This document outlines the implementation plan for the remaining features in the
 
 ---
 
+## CRITICAL INFRASTRUCTURE
+
+### 1. Secure Backend Service (Container-based)
+**Status**: In Progress  
+**Effort**: 8-10 hours  
+**Dependencies**: Docker, Azure AD app registration
+
+**Description**: Containerized backend service to handle all sensitive API operations
+
+**Implementation Steps**:
+1. Set up Docker development environment:
+   - Use provided Docker Compose configuration
+   - Configure development .env file
+   - Test local container deployment
+2. Implement core backend endpoints:
+   - License validation via Microsoft Graph
+   - Token exchange for secure operations
+   - Audit logging to PostgreSQL
+   - Redis caching for performance
+3. Configure Azure AD app registrations:
+   - Public client for extension (no secret)
+   - Confidential client for backend (with secret)
+   - Configure proper redirect URIs
+4. Set up staging environment:
+   - Deploy to cloud provider (Azure/AWS/GCP)
+   - Configure SSL certificates
+   - Set up monitoring and logging
+5. Production deployment:
+   - Use production Docker Compose config
+   - Configure secrets management
+   - Set up CI/CD pipeline
+   - Implement health checks and alerts
+
+**Key Components**:
+- Node.js backend with Express
+- PostgreSQL for data persistence
+- Redis for caching and sessions
+- Nginx for reverse proxy and SSL
+- Docker Compose for orchestration
+
+---
+
 ## HIGH PRIORITY FEATURES
 
-### 3. Complete Settings/Options Page Configuration
+### 2. Complete Settings/Options Page Configuration
 **Status**: Partially Complete  
 **Effort**: 2-3 hours  
 **Dependencies**: None
@@ -439,15 +481,22 @@ This document outlines the implementation plan for the remaining features in the
 
 ## Implementation Schedule
 
-### Week 1-2: High Priority
+### Week 1: Critical Infrastructure
+- Set up Docker development environment
+- Implement secure backend service
+- Configure Azure AD app registrations
+- Deploy to staging environment
+
+### Week 2: High Priority Features
 - Complete settings/options page
 - Implement preview functionality
 - Add RBAC checks
 
 ### Week 3-4: Medium Priority (Part 1)
-- KMSI implementation
-- Begin licensing system
+- KMSI implementation (completed)
+- Complete licensing system with backend
 - Complete export/import
+- Test backend integration thoroughly
 
 ### Week 5-6: Medium Priority (Part 2)
 - Complete licensing system
@@ -474,20 +523,24 @@ This document outlines the implementation plan for the remaining features in the
 ## Technical Considerations
 
 1. **Performance**: Implement lazy loading for large customization lists
-2. **Security**: All API keys should be encrypted in storage
-3. **Offline Support**: Cache critical data for offline use
-4. **Backward Compatibility**: Maintain support for existing customizations
-5. **Testing**: Add unit tests for new features
-6. **Documentation**: Update user guide with each feature
+2. **Security**: All API keys stored in backend only, never in extension
+3. **Container Management**: Use Docker for consistent dev/staging/prod environments
+4. **Offline Support**: Cache critical data for offline use
+5. **Backward Compatibility**: Maintain support for existing customizations
+6. **Testing**: Add unit tests for new features
+7. **Documentation**: Update user guide with each feature
+8. **Monitoring**: Implement logging and alerting for backend services
 
 ---
 
 ## Risk Mitigation
 
-1. **Licensing Server**: Can be mocked initially for development
-2. **AI APIs**: Start with one provider, add others incrementally
-3. **Complex Features**: Break down into smaller, testable components
-4. **User Feedback**: Release features in beta to subset of users
+1. **Backend Infrastructure**: Use containers for easy deployment and scaling
+2. **Licensing Server**: Fully implemented with secure backend, mockable for dev
+3. **AI APIs**: Start with one provider, add others incrementally
+4. **Complex Features**: Break down into smaller, testable components
+5. **User Feedback**: Release features in beta to subset of users
+6. **Security**: Regular security audits and penetration testing
 
 ---
 

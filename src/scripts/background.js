@@ -498,6 +498,21 @@ async function authenticateWithMSAL() {
 // Validate token and extract user information
 async function validateTokenAndGetUserInfo(token) {
   try {
+    // DEVELOPMENT MODE - Return mock user info
+    const validator = new LicenseValidator();
+    if (validator.isDevelopment) {
+      console.log('🔧 DEVELOPMENT MODE: Returning mock user info');
+      return {
+        id: 'dev-user-' + Math.random().toString(36).substr(2, 9),
+        displayName: 'Development User',
+        userPrincipalName: 'devuser@devtenant.onmicrosoft.com',
+        mail: 'devuser@devtenant.onmicrosoft.com',
+        jobTitle: 'Developer',
+        officeLocation: 'Development Environment',
+        preferredLanguage: 'en-US'
+      };
+    }
+    
     // Call Microsoft Graph to get user information
     const response = await fetch('https://graph.microsoft.com/v1.0/me', {
       headers: {
@@ -933,6 +948,74 @@ async function getDataverseTableName() {
 async function checkUserRoleInD365(authToken, orgUrl) {
   try {
     console.log('Checking user role in Dataverse for System Customizer access...');
+    
+    // DEVELOPMENT MODE - Return mock admin role
+    const validator = new LicenseValidator();
+    if (validator.isDevelopment) {
+      const devSettings = validator.getDevModeSettings();
+      const shouldMockAdmin = devSettings.mockAdminRole !== false; // Default true
+      
+      console.log('🔧 DEVELOPMENT MODE: Returning mock role', shouldMockAdmin ? '(Admin)' : '(User)');
+      
+      if (shouldMockAdmin) {
+        return {
+          isAdmin: true,
+          roles: ['System Administrator', 'System Customizer'],
+          roleDetails: [
+            {
+              name: 'System Administrator',
+              id: 'mock-role-admin',
+              businessUnitId: 'mock-bu-1'
+            },
+            {
+              name: 'System Customizer',
+              id: 'mock-role-customizer',
+              businessUnitId: 'mock-bu-1'
+            }
+          ],
+          primaryRole: 'System Administrator',
+          privileges: {
+            canCustomize: true,
+            canAdminister: true,
+            canCreateApps: true
+          },
+          verification: {
+            method: 'development-mode',
+            timestamp: Date.now(),
+            orgUrl: orgUrl || 'https://devorg.crm.dynamics.com',
+            userId: 'dev-user-12345',
+            userDisplayName: 'Development User'
+          },
+          message: 'Development mode - full admin access granted'
+        };
+      } else {
+        return {
+          isAdmin: false,
+          roles: ['Sales User'],
+          roleDetails: [
+            {
+              name: 'Sales User',
+              id: 'mock-role-sales',
+              businessUnitId: 'mock-bu-1'
+            }
+          ],
+          primaryRole: 'Sales User',
+          privileges: {
+            canCustomize: false,
+            canAdminister: false,
+            canCreateApps: false
+          },
+          verification: {
+            method: 'development-mode',
+            timestamp: Date.now(),
+            orgUrl: orgUrl || 'https://devorg.crm.dynamics.com',
+            userId: 'dev-user-12345',
+            userDisplayName: 'Development User'
+          },
+          message: 'Development mode - regular user access'
+        };
+      }
+    }
 
     // First, get user information from Microsoft Graph
     const userInfo = await validateTokenAndGetUserInfo(authToken);
@@ -2079,66 +2162,147 @@ initializeExtension().catch(error => {
   console.error('Failed to initialize extension:', error);
 });
 
+// Secure Backend Client for sensitive operations
+class SecureBackendClient {
+  constructor() {
+    this.baseUrl = this.getBackendUrl();
+    this.extensionVersion = chrome.runtime.getManifest().version;
+  }
+  
+  getBackendUrl() {
+    const isDev = chrome.runtime.getManifest().version.includes('dev') ||
+                  localStorage.getItem('DEV_MODE') === 'true';
+    
+    // In development, use local Docker container
+    if (isDev) {
+      return 'http://localhost:3000';
+    }
+    
+    // In production, use your actual backend URL
+    // TODO: Update this with your production backend URL
+    return 'https://api.yourdomain.com';
+  }
+  
+  async request(endpoint, data = {}) {
+    try {
+      const token = await this.getUserToken();
+      
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Extension-Version': this.extensionVersion,
+          'X-Request-ID': crypto.randomUUID()
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || `Request failed: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error(`Backend request failed for ${endpoint}:`, error);
+      throw error;
+    }
+  }
+  
+  async getUserToken() {
+    const result = await handleGetCachedToken();
+    if (!result.success || !result.token) {
+      throw new Error('No valid authentication token');
+    }
+    return result.token;
+  }
+}
+
 // License checking functionality - Microsoft 365 Admin Center Integration
 class LicenseValidator {
   constructor() {
-    // Microsoft Graph endpoints for license validation
-    this.graphEndpoint = 'https://graph.microsoft.com/v1.0';
-    this.licenseServicePlanId = 'YOUR_SERVICE_PLAN_ID'; // Will be assigned by Microsoft when you publish to AppSource
-    this.skuId = 'YOUR_SKU_ID'; // Will be assigned by Microsoft
-    this.publisherId = 'YOUR_PUBLISHER_ID'; // Your Microsoft Partner Center Publisher ID
+    // Check if we're in development mode
+    this.isDevelopment = this.checkDevelopmentMode();
+    
+    // Initialize secure backend client
+    this.backendClient = new SecureBackendClient();
+    
+    // Public configuration only - no secrets!
+    this.publicConfig = {
+      clientId: 'YOUR_PUBLIC_CLIENT_ID', // This is public, OK to be in code
+      authority: 'https://login.microsoftonline.com/common'
+    };
+  }
+  
+  checkDevelopmentMode() {
+    // Multiple ways to enable dev mode
+    const manifest = chrome.runtime.getManifest();
+    
+    // Check manifest version for dev/beta
+    if (manifest.version.includes('dev') || manifest.version.includes('beta')) {
+      return true;
+    }
+    
+    // Check if extension is unpacked (dev mode)
+    if (!chrome.runtime.id || chrome.runtime.id.length !== 32) {
+      return true;
+    }
+    
+    // Check storage for dev mode flag
+    const devModeEnabled = localStorage.getItem('DEV_MODE') === 'true';
+    if (devModeEnabled) {
+      return true;
+    }
+    
+    // Check for development manifest key
+    if (manifest.key && manifest.key.includes('MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQ')) {
+      return false; // Production key pattern
+    }
+    
+    return false;
+  }
+  
+  getDevModeSettings() {
+    try {
+      const settings = localStorage.getItem('DEV_MODE_SETTINGS');
+      return settings ? JSON.parse(settings) : {};
+    } catch (error) {
+      return {};
+    }
   }
 
   async validateUserLicense(accessToken) {
     try {
       console.log('Validating Microsoft 365 license...');
-
-      // Get current user's assigned licenses
-      const userLicenses = await this.getUserLicenses(accessToken);
       
-      // Check if user has the specific license for this extension
-      const hasValidLicense = this.checkForValidLicense(userLicenses);
-      
-      if (hasValidLicense) {
-        // Get license details
-        const licenseDetails = await this.getLicenseDetails(accessToken, hasValidLicense);
-        
-        // Verify license is active and not expired
-        const isActive = this.verifyLicenseStatus(licenseDetails);
-        
-        return {
-          valid: isActive,
-          licensed: true,
-          details: licenseDetails,
-          expiresOn: licenseDetails.expiryDate,
-          assignedOn: licenseDetails.assignedDate,
-          licenseType: licenseDetails.skuPartNumber,
-          tenantId: licenseDetails.tenantId
-        };
+      // DEVELOPMENT MODE - Return mock license
+      if (this.isDevelopment) {
+        console.log('🔧 DEVELOPMENT MODE: Returning mock license');
+        return this.getMockLicenseResponse(true);
       }
+
+      // In production, use secure backend for license validation
+      // The backend holds the client secret and makes the actual Graph API calls
+      const { d365OrgUrl } = await chrome.storage.sync.get('d365OrgUrl');
+      const tenantId = this.extractTenantId(d365OrgUrl);
       
-      // Check if tenant has available licenses
-      const tenantLicenses = await this.getTenantLicenses(accessToken);
-      const hasUnassignedLicenses = this.checkForUnassignedLicenses(tenantLicenses);
+      // Call your secure backend - no secrets in the extension!
+      const licenseResult = await this.backendClient.request('/api/license/validate', {
+        tenantId: tenantId
+      });
       
-      return {
-        valid: false,
-        licensed: false,
-        hasUnassignedLicenses: hasUnassignedLicenses,
-        message: hasUnassignedLicenses 
-          ? 'License available but not assigned. Contact your administrator.'
-          : 'No valid license found. Purchase through Microsoft 365 Admin Center.'
-      };
+      return licenseResult;
       
     } catch (error) {
       console.error('License validation error:', error);
       
       // Handle specific error cases
-      if (error.status === 403) {
+      if (error.message.includes('401') || error.message.includes('auth')) {
         return {
           valid: false,
-          error: 'Insufficient permissions to validate license',
-          requiresConsent: true
+          error: 'Authentication required',
+          requiresAuth: true
         };
       }
       
@@ -2149,25 +2313,99 @@ class LicenseValidator {
       };
     }
   }
-
-  async getUserLicenses(accessToken) {
-    const response = await fetch(`${this.graphEndpoint}/me/licenseDetails`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get user licenses: ${response.status}`);
+  
+  extractTenantId(d365OrgUrl) {
+    if (!d365OrgUrl) return null;
+    const match = d365OrgUrl.match(/https:\/\/([\w-]+)\./);
+    return match ? match[1] : null;
+  }
+  
+  // Mock response for development
+  getMockLicenseResponse(isValid = true) {
+    // Check dev mode settings
+    const devSettings = this.getDevModeSettings();
+    const shouldMockValid = devSettings.mockValidLicense !== false; // Default true
+    
+    const mockTenantId = devSettings.mockTenantId || 'dev-tenant-' + Math.random().toString(36).substr(2, 9);
+    
+    if (shouldMockValid && isValid) {
+      return {
+        valid: true,
+        licensed: true,
+        details: {
+          skuPartNumber: 'DOMSTYLEINJECTOR_PREMIUM_DEV',
+          servicePlans: [
+            {
+              servicePlanId: this.licenseServicePlanId,
+              servicePlanName: 'DOM_STYLE_INJECTOR_DEV',
+              provisioningStatus: 'Success'
+            }
+          ]
+        },
+        expiresOn: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+        assignedOn: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+        licenseType: 'Premium Development',
+        tenantId: mockTenantId,
+        tenantName: 'Development Tenant',
+        features: {
+          maxCustomizations: -1, // Unlimited
+          syncEnabled: true,
+          advancedFeatures: true,
+          supportLevel: 'premium'
+        },
+        isDevelopment: true
+      };
+    } else {
+      return {
+        valid: false,
+        licensed: false,
+        hasUnassignedLicenses: false,
+        message: 'No valid license found (Development Mode)',
+        isDevelopment: true
+      };
     }
+  }
 
-    const data = await response.json();
-    return data.value || [];
+  // In production, these methods won't be called directly
+  // They're kept for development mode only
+  async getUserLicenses(accessToken) {
+    // DEVELOPMENT MODE ONLY
+    if (this.isDevelopment) {
+      console.log('🔧 DEVELOPMENT MODE: Returning mock user licenses');
+      return this.getMockUserLicenses();
+    }
+    
+    // In production, the backend handles all Graph API calls
+    throw new Error('Direct API calls not allowed - use secure backend');
+  }
+  
+  getMockUserLicenses() {
+    return [
+      {
+        id: 'mock-license-1',
+        skuId: this.skuId,
+        skuPartNumber: 'DOMSTYLEINJECTOR_PREMIUM_DEV',
+        assignedDateTime: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        servicePlans: [
+          {
+            servicePlanId: this.licenseServicePlanId,
+            servicePlanName: 'DOM_STYLE_INJECTOR_DEV',
+            provisioningStatus: 'Success',
+            appliesTo: 'User'
+          }
+        ]
+      }
+    ];
   }
 
   async getTenantLicenses(accessToken) {
     try {
+      // DEVELOPMENT MODE - Return mock tenant licenses
+      if (this.isDevelopment) {
+        console.log('🔧 DEVELOPMENT MODE: Returning mock tenant licenses');
+        return this.getMockTenantLicenses();
+      }
+      
       const response = await fetch(`${this.graphEndpoint}/subscribedSkus`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -2185,6 +2423,30 @@ class LicenseValidator {
       console.warn('Could not fetch tenant licenses:', error);
       return [];
     }
+  }
+  
+  getMockTenantLicenses() {
+    return [
+      {
+        id: 'mock-sku-1',
+        skuId: this.skuId,
+        skuPartNumber: 'DOMSTYLEINJECTOR_PREMIUM_DEV',
+        prepaidUnits: {
+          enabled: 10,
+          suspended: 0,
+          warning: 0
+        },
+        consumedUnits: 5, // 5 assigned, 5 available
+        servicePlans: [
+          {
+            servicePlanId: this.licenseServicePlanId,
+            servicePlanName: 'DOM_STYLE_INJECTOR_DEV',
+            provisioningStatus: 'Success',
+            appliesTo: 'User'
+          }
+        ]
+      }
+    ];
   }
 
   checkForValidLicense(userLicenses) {
@@ -2248,6 +2510,21 @@ class LicenseValidator {
 
   async getTenantInfo(accessToken) {
     try {
+      // DEVELOPMENT MODE - Return mock tenant info
+      if (this.isDevelopment) {
+        console.log('🔧 DEVELOPMENT MODE: Returning mock tenant info');
+        return {
+          id: 'dev-tenant-' + Math.random().toString(36).substr(2, 9),
+          displayName: 'Development Tenant',
+          verifiedDomains: [
+            {
+              name: 'devtenant.onmicrosoft.com',
+              isDefault: true
+            }
+          ]
+        };
+      }
+      
       const response = await fetch(`${this.graphEndpoint}/organization`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
