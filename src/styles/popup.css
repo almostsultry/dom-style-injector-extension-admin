@@ -1071,3 +1071,69 @@ button:focus,
     background: #0056b3;
     border-color: #0056b3;
 }
+
+/* Visio Integration Styles */
+#visio-options .radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#visio-options .radio-label {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+#visio-options .radio-label:hover {
+    background: #f8f9fa;
+    border-color: #007acc;
+}
+
+#visio-options input[type="radio"]:checked + span {
+    color: #007acc;
+    font-weight: 600;
+}
+
+#visio-options .radio-label small {
+    margin-top: 4px;
+    color: #6c757d;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#visio-options .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+#visio-status {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+#visio-status.info {
+    background: #cff4fc;
+    border: 1px solid #b6effb;
+    color: #055160;
+}
+
+#visio-status.success {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+#visio-status.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}

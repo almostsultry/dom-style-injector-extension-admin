@@ -684,6 +684,10 @@ async function initializePopup() {
         
         // Initialize AI integration
         await initializeAIIntegration();
+        
+        // Initialize Visio integration
+        await initializeVisioIntegration();
+        
         // Check license first
         const licenseCheck = await chrome.runtime.sendMessage({ action: 'checkLicense' });
         
@@ -3742,3 +3746,155 @@ aiStyles.textContent = `
 }
 `;
 document.head.appendChild(aiStyles);
+
+// =============================================================================
+// VISIO INTEGRATION FUNCTIONALITY
+// =============================================================================
+let visioIntegrationManager = null;
+let visioOptionsVisible = false;
+
+async function initializeVisioIntegration() {
+    try {
+        // Check if VisioIntegrationManager is available
+        if (typeof VisioIntegrationManager === 'undefined') {
+            console.warn('VisioIntegrationManager not found. Visio features will be disabled.');
+            return;
+        }
+        
+        visioIntegrationManager = new VisioIntegrationManager();
+        await visioIntegrationManager.initialize();
+        
+        // Setup Visio button
+        const visioBtn = document.getElementById('visio-btn');
+        if (visioBtn) {
+            visioBtn.addEventListener('click', toggleVisioOptions);
+            
+            // Check if user has Visio license
+            const availability = await visioIntegrationManager.checkVisioAvailability();
+            if (!availability.available) {
+                visioBtn.disabled = true;
+                visioBtn.title = `Visio not available: ${availability.reason}`;
+            }
+        }
+        
+        // Setup Visio option buttons
+        const doVisioBtn = document.getElementById('do-visio');
+        const cancelVisioBtn = document.getElementById('cancel-visio');
+        
+        if (doVisioBtn) {
+            doVisioBtn.addEventListener('click', createVisioDiagram);
+        }
+        
+        if (cancelVisioBtn) {
+            cancelVisioBtn.addEventListener('click', () => {
+                toggleVisioOptions(false);
+            });
+        }
+        
+        console.log('Visio Integration initialized in popup');
+    } catch (error) {
+        console.error('Failed to initialize Visio integration:', error);
+    }
+}
+
+// Toggle Visio options panel
+function toggleVisioOptions(show) {
+    const visioOptions = document.getElementById('visio-options');
+    if (!visioOptions) return;
+    
+    if (show === undefined) {
+        visioOptionsVisible = !visioOptionsVisible;
+    } else {
+        visioOptionsVisible = show;
+    }
+    
+    // Hide other panels
+    const exportOptions = document.getElementById('export-options');
+    const importOptions = document.getElementById('import-options');
+    const screenshotOptions = document.getElementById('screenshot-options');
+    
+    if (exportOptions) exportOptions.style.display = 'none';
+    if (importOptions) importOptions.style.display = 'none';
+    if (screenshotOptions) screenshotOptions.style.display = 'none';
+    
+    visioOptions.style.display = visioOptionsVisible ? 'block' : 'none';
+}
+
+// Create Visio diagram
+async function createVisioDiagram() {
+    if (!visioIntegrationManager) {
+        showNotification('Visio integration not initialized', 'error');
+        return;
+    }
+    
+    const visioStatus = document.getElementById('visio-status');
+    const doVisioBtn = document.getElementById('do-visio');
+    
+    try {
+        // Check permission
+        if (!await checkPermission('EXPORT_DATA')) {
+            showNotification('Permission denied for exporting data', 'error');
+            return;
+        }
+        
+        // Get diagram type
+        const diagramType = document.querySelector('input[name="visio-type"]:checked')?.value || 'architecture';
+        const openInEditor = document.getElementById('visio-open-editor')?.checked ?? true;
+        
+        // Show status
+        if (visioStatus) {
+            visioStatus.style.display = 'block';
+            visioStatus.textContent = 'Creating Visio diagram...';
+            visioStatus.className = 'import-status info';
+        }
+        
+        // Disable button
+        if (doVisioBtn) doVisioBtn.disabled = true;
+        
+        // Get customizations
+        const { customizations = [] } = await chrome.storage.local.get('customizations');
+        
+        if (customizations.length === 0) {
+            showNotification('No customizations to visualize', 'warning');
+            if (visioStatus) visioStatus.style.display = 'none';
+            if (doVisioBtn) doVisioBtn.disabled = false;
+            return;
+        }
+        
+        // Create diagram
+        const result = await visioIntegrationManager.createDiagram(customizations, diagramType);
+        
+        if (result.success) {
+            showNotification('Visio diagram created successfully!', 'success');
+            
+            if (visioStatus) {
+                visioStatus.textContent = 'Diagram created successfully!';
+                visioStatus.className = 'import-status success';
+            }
+            
+            // Open in Visio Online if requested
+            if (openInEditor && result.editUrl) {
+                window.open(result.editUrl, '_blank');
+            }
+            
+            // Hide options after success
+            setTimeout(() => {
+                toggleVisioOptions(false);
+                if (visioStatus) visioStatus.style.display = 'none';
+            }, 2000);
+        } else {
+            throw new Error(result.error || 'Failed to create diagram');
+        }
+        
+    } catch (error) {
+        console.error('Visio diagram creation error:', error);
+        showNotification(`Failed to create diagram: ${error.message}`, 'error');
+        
+        if (visioStatus) {
+            visioStatus.textContent = `Error: ${error.message}`;
+            visioStatus.className = 'import-status error';
+        }
+    } finally {
+        if (doVisioBtn) doVisioBtn.disabled = false;
+    }
+}

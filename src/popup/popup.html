@@ -356,6 +356,9 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
                         <button id="screenshot-btn" class="btn btn-secondary btn-sm" title="Capture screenshot">
                             📷 Screenshot
                         </button>
+                        <button id="visio-btn" class="btn btn-secondary btn-sm" title="Create Visio diagram">
+                            📊 Visio
+                        </button>
                     </div>
                 </div>
 
@@ -455,6 +458,47 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
                         <button id="cancel-screenshot" class="btn btn-secondary">Cancel</button>
                     </div>
                     <div id="screenshot-status" class="import-status" style="display: none;"></div>
+                </div>
+
+                <!-- Visio Options (hidden by default) -->
+                <div id="visio-options" class="export-import-panel" style="display: none;">
+                    <h3>Visio Diagram Options</h3>
+                    <div class="form-group">
+                        <label class="form-label">Diagram Type</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="visio-type" value="architecture" checked>
+                                <span>Architecture Diagram</span>
+                                <small>System architecture and component relationships</small>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="visio-type" value="flow">
+                                <span>Flow Diagram</span>
+                                <small>CSS rule application flow</small>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="visio-type" value="hierarchy">
+                                <span>Hierarchy Diagram</span>
+                                <small>DOM element hierarchy visualization</small>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="visio-type" value="network">
+                                <span>Network Diagram</span>
+                                <small>CSS selector relationships</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="visio-open-editor" checked>
+                            <span>Open in Visio Online after creation</span>
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button id="do-visio" class="btn btn-primary">Create Diagram</button>
+                        <button id="cancel-visio" class="btn btn-secondary">Cancel</button>
+                    </div>
+                    <div id="visio-status" class="import-status" style="display: none;"></div>
                 </div>
             </div>
         </div>
@@ -568,6 +612,7 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
     <script src="../scripts/eyedropper-manager.js"></script>
     <script src="../scripts/branding-manager.js"></script>
     <script src="../scripts/ai-integration-manager.js"></script>
+    <script src="../scripts/visio-integration-manager.js"></script>
     <script src="popup.js"></script>
     <script src="../scripts/dev-mode-indicator.js"></script>
 </body>
