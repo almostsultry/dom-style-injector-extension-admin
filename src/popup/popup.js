@@ -688,6 +688,9 @@ async function initializePopup() {
         // Initialize Visio integration
         await initializeVisioIntegration();
         
+        // Initialize Documentation Generator
+        await initializeDocumentationGenerator();
+        
         // Check license first
         const licenseCheck = await chrome.runtime.sendMessage({ action: 'checkLicense' });
         
@@ -3896,5 +3899,194 @@ async function createVisioDiagram() {
         }
     } finally {
         if (doVisioBtn) doVisioBtn.disabled = false;
+    }
+}
+
+// =============================================================================
+// DOCUMENTATION GENERATION FUNCTIONALITY
+// =============================================================================
+let documentationGenerator = null;
+let docsOptionsVisible = false;
+
+async function initializeDocumentationGenerator() {
+    try {
+        // Check if DocumentationGenerator is available
+        if (typeof DocumentationGenerator === 'undefined') {
+            console.warn('DocumentationGenerator not found. Documentation features will be disabled.');
+            return;
+        }
+        
+        documentationGenerator = new DocumentationGenerator();
+        await documentationGenerator.initialize();
+        
+        // Setup documentation button
+        const generateDocsBtn = document.getElementById('generate-docs-btn');
+        if (generateDocsBtn) {
+            generateDocsBtn.addEventListener('click', toggleDocsOptions);
+        }
+        
+        // Setup documentation option buttons
+        const doGenerateDocsBtn = document.getElementById('do-generate-docs');
+        const cancelDocsBtn = document.getElementById('cancel-docs');
+        
+        if (doGenerateDocsBtn) {
+            doGenerateDocsBtn.addEventListener('click', generateDocumentation);
+        }
+        
+        if (cancelDocsBtn) {
+            cancelDocsBtn.addEventListener('click', () => {
+                toggleDocsOptions(false);
+            });
+        }
+        
+        // Setup diagram type toggle
+        const includeDiagramsCheckbox = document.getElementById('docs-include-diagrams');
+        if (includeDiagramsCheckbox) {
+            includeDiagramsCheckbox.addEventListener('change', (e) => {
+                const diagramTypesSection = document.getElementById('docs-diagram-types');
+                if (diagramTypesSection) {
+                    diagramTypesSection.style.display = e.target.checked ? 'block' : 'none';
+                }
+            });
+        }
+        
+        console.log('Documentation Generator initialized in popup');
+    } catch (error) {
+        console.error('Failed to initialize Documentation Generator:', error);
+    }
+}
+
+// Toggle documentation options panel
+function toggleDocsOptions(show) {
+    const docsOptions = document.getElementById('docs-options');
+    if (!docsOptions) return;
+    
+    if (show === undefined) {
+        docsOptionsVisible = !docsOptionsVisible;
+    } else {
+        docsOptionsVisible = show;
+    }
+    
+    // Hide other panels
+    const exportOptions = document.getElementById('export-options');
+    const importOptions = document.getElementById('import-options');
+    const screenshotOptions = document.getElementById('screenshot-options');
+    const visioOptions = document.getElementById('visio-options');
+    
+    if (exportOptions) exportOptions.style.display = 'none';
+    if (importOptions) importOptions.style.display = 'none';
+    if (screenshotOptions) screenshotOptions.style.display = 'none';
+    if (visioOptions) visioOptions.style.display = 'none';
+    
+    docsOptions.style.display = docsOptionsVisible ? 'block' : 'none';
+}
+
+// Generate documentation
+async function generateDocumentation() {
+    if (!documentationGenerator) {
+        showNotification('Documentation generator not initialized', 'error');
+        return;
+    }
+    
+    const docsStatus = document.getElementById('docs-status');
+    const doGenerateDocsBtn = document.getElementById('do-generate-docs');
+    
+    try {
+        // Check permission
+        if (!await checkPermission('EXPORT_DATA')) {
+            showNotification('Permission denied for exporting data', 'error');
+            return;
+        }
+        
+        // Get options
+        const options = {
+            includeOverview: document.getElementById('docs-overview')?.checked ?? true,
+            includeTechnical: document.getElementById('docs-technical')?.checked ?? true,
+            includeUserGuide: document.getElementById('docs-user-guide')?.checked ?? true,
+            includeApiDocs: document.getElementById('docs-api')?.checked ?? false,
+            includeDiagrams: document.getElementById('docs-include-diagrams')?.checked ?? true,
+            diagramTypes: []
+        };
+        
+        // Get selected diagram types
+        if (options.includeDiagrams) {
+            const diagramCheckboxes = document.querySelectorAll('input[name="docs-diagram-type"]:checked');
+            options.diagramTypes = Array.from(diagramCheckboxes).map(cb => cb.value);
+        }
+        
+        // Get AI provider if AI enhancement is enabled
+        if (document.getElementById('docs-ai-enhance')?.checked && aiIntegrationManager) {
+            const configuredProviders = aiIntegrationManager.getConfiguredProviders();
+            if (configuredProviders.length > 0) {
+                options.aiProvider = configuredProviders[0]; // Use first configured provider
+            }
+        }
+        
+        // Show status
+        if (docsStatus) {
+            docsStatus.style.display = 'block';
+            docsStatus.textContent = 'Generating documentation...';
+            docsStatus.className = 'import-status info';
+        }
+        
+        // Disable button
+        if (doGenerateDocsBtn) doGenerateDocsBtn.disabled = true;
+        
+        // Get customizations
+        const { customizations = [] } = await chrome.storage.local.get('customizations');
+        
+        if (customizations.length === 0) {
+            showNotification('No customizations to document', 'warning');
+            if (docsStatus) docsStatus.style.display = 'none';
+            if (doGenerateDocsBtn) doGenerateDocsBtn.disabled = false;
+            return;
+        }
+        
+        // Update status for diagram creation
+        if (options.includeDiagrams && options.diagramTypes.length > 0) {
+            if (docsStatus) {
+                docsStatus.textContent = 'Creating diagrams...';
+            }
+        }
+        
+        // Generate documentation
+        const result = await documentationGenerator.generateFullDocumentation(customizations, options);
+        
+        if (result.success) {
+            showNotification('Documentation generated successfully!', 'success');
+            
+            if (docsStatus) {
+                docsStatus.textContent = 'Documentation generated! Downloading...';
+                docsStatus.className = 'import-status success';
+            }
+            
+            // Download the documentation
+            const blob = new Blob([result.documentation], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `DOM-Style-Injector-Documentation-${new Date().toISOString().split('T')[0]}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            // Hide options after success
+            setTimeout(() => {
+                toggleDocsOptions(false);
+                if (docsStatus) docsStatus.style.display = 'none';
+            }, 2000);
+        } else {
+            throw new Error(result.error || 'Failed to generate documentation');
+        }
+        
+    } catch (error) {
+        console.error('Documentation generation error:', error);
+        showNotification(`Failed to generate documentation: ${error.message}`, 'error');
+        
+        if (docsStatus) {
+            docsStatus.textContent = `Error: ${error.message}`;
+            docsStatus.className = 'import-status error';
+        }
+    } finally {
+        if (doGenerateDocsBtn) doGenerateDocsBtn.disabled = false;
     }
 }

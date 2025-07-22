@@ -359,6 +359,9 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
                         <button id="visio-btn" class="btn btn-secondary btn-sm" title="Create Visio diagram">
                             📊 Visio
                         </button>
+                        <button id="generate-docs-btn" class="btn btn-secondary btn-sm" title="Generate documentation">
+                            📄 Docs
+                        </button>
                     </div>
                 </div>
 
@@ -500,6 +503,71 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
                     </div>
                     <div id="visio-status" class="import-status" style="display: none;"></div>
                 </div>
+
+                <!-- Documentation Options (hidden by default) -->
+                <div id="docs-options" class="export-import-panel" style="display: none;">
+                    <h3>Documentation Options</h3>
+                    <div class="form-group">
+                        <label class="form-label">Documentation Type</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="docs-overview" checked>
+                                <span>Overview & Statistics</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="docs-technical" checked>
+                                <span>Technical Documentation</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="docs-user-guide" checked>
+                                <span>User Guide</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="docs-api">
+                                <span>API Documentation</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Enhancements</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="docs-ai-enhance" checked>
+                                <span>AI-Enhanced Content (if configured)</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="docs-include-diagrams" checked>
+                                <span>Include Visio Diagrams</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group" id="docs-diagram-types" style="display: block;">
+                        <label class="form-label">Diagram Types</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="docs-diagram-type" value="architecture" checked>
+                                <span>Architecture Diagram</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="docs-diagram-type" value="flow" checked>
+                                <span>Flow Diagram</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="docs-diagram-type" value="hierarchy">
+                                <span>Hierarchy Diagram</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="docs-diagram-type" value="network">
+                                <span>Network Diagram</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button id="do-generate-docs" class="btn btn-primary">Generate Documentation</button>
+                        <button id="cancel-docs" class="btn btn-secondary">Cancel</button>
+                    </div>
+                    <div id="docs-status" class="import-status" style="display: none;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -613,6 +681,7 @@ border-color: #007acc;" aria-describedby="checked-help"></textarea>
     <script src="../scripts/branding-manager.js"></script>
     <script src="../scripts/ai-integration-manager.js"></script>
     <script src="../scripts/visio-integration-manager.js"></script>
+    <script src="../scripts/documentation-generator.js"></script>
     <script src="popup.js"></script>
     <script src="../scripts/dev-mode-indicator.js"></script>
 </body>

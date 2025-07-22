@@ -1137,3 +1137,71 @@ button:focus,
     border: 1px solid #f5c6cb;
     color: #721c24;
 }
+
+/* Documentation Generation Styles */
+#docs-options .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+#docs-options .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+#docs-options .checkbox-label:hover {
+    background: #f8f9fa;
+    border-color: #007acc;
+}
+
+#docs-options input[type="checkbox"]:checked + span {
+    color: #007acc;
+    font-weight: 500;
+}
+
+#docs-diagram-types {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+#docs-status {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+#docs-status.info {
+    background: #cff4fc;
+    border: 1px solid #b6effb;
+    color: #055160;
+}
+
+#docs-status.success {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+#docs-status.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.export-import-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
