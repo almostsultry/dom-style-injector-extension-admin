@@ -1,8 +1,14 @@
 // tests/setup.js
 // Setup file for Jest tests
 
+// Import Jest globals
+import { jest } from '@jest/globals';
+
 // Import the webextension mock
-require('jest-webextension-mock');
+import 'jest-webextension-mock';
+
+// Import test utilities
+import './utils/test-utils.js';
 
 // Setup Chrome API mocks
 global.chrome = {

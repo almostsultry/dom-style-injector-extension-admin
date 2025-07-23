@@ -1,0 +1,10 @@
+# Ignore minified files
+src/lib/msal-browser.min.js
+**/*.min.js
+
+# Ignore build output
+dist/
+node_modules/
+
+# Ignore coverage
+coverage/

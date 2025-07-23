@@ -1,5 +1,5 @@
 // src/auth/auth-service.js - Fixed import and configuration issues
-import { msalConfig, loginRequest, graphRequest, getStoredConfig } from './msal-config.js';
+import { loginRequest, graphRequest, getStoredConfig } from './msal-config.js';
 
 let msalInstance = null;
 let currentAccount = null;

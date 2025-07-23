@@ -821,7 +821,7 @@ async function handleGetCachedToken() {
       return { success: false, error: 'Identity permission not available' };
     }
 
-    const authToken = await new Promise((resolve, reject) => {
+    const freshAuthToken = await new Promise((resolve, reject) => {
       chrome.identity.getAuthToken({ interactive: false }, (token) => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
@@ -831,7 +831,7 @@ async function handleGetCachedToken() {
       });
     });
 
-    return { success: true, token: authToken, kmsi: false };
+    return { success: true, token: freshAuthToken, kmsi: false };
 
   } catch (error) {
     console.error('Get cached token error:', error);

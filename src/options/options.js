@@ -1,6 +1,9 @@
 // src/options/options.js
 
-/* global Blob, URL, navigator */
+/* global navigator */
+
+import BrandingManager from '../scripts/branding-manager.js';
+import AIIntegrationManager from '../scripts/ai-integration-manager.js';
 
 // Permissions configuration (same as popup.js)
 const PERMISSIONS = {

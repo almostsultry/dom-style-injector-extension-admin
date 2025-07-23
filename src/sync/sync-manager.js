@@ -1,7 +1,7 @@
 // Synchronization manager for SharePoint integration
 import { getAccessToken } from '../auth/auth-service.js';
 import { sharePointService } from './sharepoint-service.js';
-import { getCurrentEnvironment } from '../auth/msal-config.js';
+// getCurrentEnvironment import removed - not available in msal-config.js
 
 let syncInProgress = false;
 let lastSyncTime = null;

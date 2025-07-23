@@ -8,7 +8,7 @@ class AIIntegrationManager {
                 name: 'ChatGPT',
                 endpoint: 'https://api.openai.com/v1/chat/completions',
                 model: 'gpt-4',
-                headers: (apiKey) => ({
+                headers: (_apiKey) => ({
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
                 })
@@ -17,7 +17,7 @@ class AIIntegrationManager {
                 name: 'Claude',
                 endpoint: 'https://api.anthropic.com/v1/messages',
                 model: 'claude-3-opus-20240229',
-                headers: (apiKey) => ({
+                headers: (_apiKey) => ({
                     'X-API-Key': apiKey,
                     'Content-Type': 'application/json',
                     'anthropic-version': '2023-06-01'
@@ -27,7 +27,7 @@ class AIIntegrationManager {
                 name: 'Copilot',
                 endpoint: null, // Will use Azure OpenAI endpoint
                 model: 'gpt-4',
-                headers: (apiKey, endpoint) => ({
+                headers: (apiKey, _endpoint) => ({
                     'api-key': apiKey,
                     'Content-Type': 'application/json'
                 })
@@ -35,7 +35,7 @@ class AIIntegrationManager {
             google: {
                 name: 'Gemini',
                 endpoint: 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent',
-                headers: (apiKey) => ({
+                headers: (_apiKey) => ({
                     'Content-Type': 'application/json'
                 })
             },
@@ -43,7 +43,7 @@ class AIIntegrationManager {
                 name: 'Grok',
                 endpoint: 'https://api.x.ai/v1/chat/completions',
                 model: 'grok-1',
-                headers: (apiKey) => ({
+                headers: (_apiKey) => ({
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
                 })

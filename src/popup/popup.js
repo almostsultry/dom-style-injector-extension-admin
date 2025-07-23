@@ -899,24 +899,7 @@ function initializeFormElements() {
 // =============================================================================
 // USER VIEW INITIALIZATION
 // =============================================================================
-async function initializeUserView() {
-    isAdmin = false;
-
-    // Setup user event listeners
-    const syncBtn = document.getElementById('user-sync-btn');
-    if (syncBtn) {
-        syncBtn.addEventListener('click', handleUserSync);
-    }
-
-    // Load existing customizations
-    loadCustomizations(false);
-
-    // Setup logout functionality
-    const logoutBtnUser = document.getElementById('logout-btn-user');
-    if (logoutBtnUser) {
-        logoutBtnUser.addEventListener('click', handleLogout);
-    }
-}
+// initializeUserView function is already defined above
 
 // =============================================================================
 // LOGOUT FUNCTIONALITY - From existing version

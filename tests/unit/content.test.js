@@ -3,7 +3,7 @@ import { jest } from '@jest/globals';
 import testData from '../fixtures/test-data.json';
 
 // Mock DOM environment
-const { JSDOM } = require('jsdom');
+import { JSDOM } from 'jsdom';
 
 describe('Content Script Functionality', () => {
     let dom;
