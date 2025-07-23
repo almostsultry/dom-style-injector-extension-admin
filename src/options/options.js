@@ -1,6 +1,5 @@
 // src/options/options.js
 
-/* global navigator */
 
 import BrandingManager from '../scripts/branding-manager.js';
 import AIIntegrationManager from '../scripts/ai-integration-manager.js';

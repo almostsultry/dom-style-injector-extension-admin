@@ -40,7 +40,7 @@
     "deploy:edge": "node scripts/deploy-edge.js",
     "clean": "rimraf dist",
     "prebuild": "npm run clean",
-    "pretest": "echo 'Skipping lint for now'",
+    "pretest": "npm run lint",
     "prepare": "husky install"
   },
   "dependencies": {

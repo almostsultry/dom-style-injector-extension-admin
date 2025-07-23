@@ -336,7 +336,7 @@
                     url: currentUrl,
                     isRetry: false
                 });
-            } catch (error) {
+            } catch (_error) {
                 // Popup might not be open, ignore error
             }
 
@@ -414,7 +414,7 @@
     // ==================== ENHANCED CUSTOMIZATION APPLICATION ====================
     function applyNewFormatCustomization(customization) {
         try {
-            const { id, selector, css, pseudoClasses } = customization;
+            const { selector, css, pseudoClasses } = customization;
 
             if (!selector) {
                 console.warn('DOM Style Injector: Invalid customization - no selector:', customization);
@@ -548,7 +548,7 @@
         });
     }
 
-    function scheduleRetryForMissingElements(selector, styles, queryPattern, currentQueryParams) {
+    function scheduleRetryForMissingElements(selector, styles, queryPattern, _currentQueryParams) {
         const retryKey = `${selector}-${queryPattern}`;
 
         // Avoid duplicate retries
@@ -591,7 +591,7 @@
                             isRetry: true,
                             retryAttempt: index + 1
                         });
-                    } catch (error) {
+                    } catch (_error) {
                         // Popup might not be open, ignore error
                     }
                 } else if (index === retryDelays.length - 1) {
@@ -656,19 +656,20 @@
         return matches;
     }
 
-    function parseCSSProperties(cssText) {
-        const properties = {};
-        const declarations = cssText.split(';');
+    // Currently unused - will be used for advanced CSS parsing in future
+    // function parseCSSProperties(cssText) {
+    //     const properties = {};
+    //     const declarations = cssText.split(';');
 
-        declarations.forEach(declaration => {
-            const [property, value] = declaration.split(':').map(s => s.trim());
-            if (property && value) {
-                properties[property] = value;
-            }
-        });
+    //     declarations.forEach(declaration => {
+    //         const [property, value] = declaration.split(':').map(s => s.trim());
+    //         if (property && value) {
+    //             properties[property] = value;
+    //         }
+    //     });
 
-        return properties;
-    }
+    //     return properties;
+    // }
 
     // ==================== PREVIEW FUNCTIONALITY ====================
     const previewStyles = new Map(); // Track preview styles separately

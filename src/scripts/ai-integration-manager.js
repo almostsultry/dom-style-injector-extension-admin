@@ -9,7 +9,7 @@ class AIIntegrationManager {
                 endpoint: 'https://api.openai.com/v1/chat/completions',
                 model: 'gpt-4',
                 headers: (_apiKey) => ({
-                    'Authorization': `Bearer ${apiKey}`,
+                    'Authorization': `Bearer ${_apiKey}`,
                     'Content-Type': 'application/json'
                 })
             },
@@ -18,7 +18,7 @@ class AIIntegrationManager {
                 endpoint: 'https://api.anthropic.com/v1/messages',
                 model: 'claude-3-opus-20240229',
                 headers: (_apiKey) => ({
-                    'X-API-Key': apiKey,
+                    'X-API-Key': _apiKey,
                     'Content-Type': 'application/json',
                     'anthropic-version': '2023-06-01'
                 })
@@ -44,7 +44,7 @@ class AIIntegrationManager {
                 endpoint: 'https://api.x.ai/v1/chat/completions',
                 model: 'grok-1',
                 headers: (_apiKey) => ({
-                    'Authorization': `Bearer ${apiKey}`,
+                    'Authorization': `Bearer ${_apiKey}`,
                     'Content-Type': 'application/json'
                 })
             }

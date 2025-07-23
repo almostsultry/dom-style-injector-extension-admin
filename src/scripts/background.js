@@ -285,7 +285,7 @@ async function initializeExtension() {
     }
     
     // Check if sync on startup is enabled
-    const { syncOnStartup, licenseEndpoint } = await chrome.storage.sync.get(['syncOnStartup', 'licenseEndpoint']);
+    const { syncOnStartup } = await chrome.storage.sync.get(['syncOnStartup']);
     
     if (syncOnStartup) {
       console.log('Sync on startup enabled - performing sync');
@@ -2267,12 +2267,12 @@ class LicenseValidator {
     try {
       const settings = localStorage.getItem('DEV_MODE_SETTINGS');
       return settings ? JSON.parse(settings) : {};
-    } catch (error) {
+    } catch (_error) {
       return {};
     }
   }
 
-  async validateUserLicense(accessToken) {
+  async validateUserLicense(_accessToken) {
     try {
       console.log('Validating Microsoft 365 license...');
       
@@ -2368,7 +2368,7 @@ class LicenseValidator {
 
   // In production, these methods won't be called directly
   // They're kept for development mode only
-  async getUserLicenses(accessToken) {
+  async getUserLicenses(_accessToken) {
     // DEVELOPMENT MODE ONLY
     if (this.isDevelopment) {
       console.log('🔧 DEVELOPMENT MODE: Returning mock user licenses');
@@ -2562,7 +2562,7 @@ class LicenseValidator {
     return activePlans && activePlans.length > 0;
   }
 
-  calculateExpiryDate(license) {
+  calculateExpiryDate(_license) {
     // Microsoft 365 licenses typically don't have explicit expiry in the API
     // They're subscription-based and renew monthly/annually
     // You might need to implement custom logic based on your agreement with Microsoft
@@ -2657,7 +2657,7 @@ class LicenseValidator {
 // Global license validator instance
 const licenseValidator = new LicenseValidator();
 
-async function handleCheckLicense(request) {
+async function handleCheckLicense(_request) {
   try {
     console.log('Checking Microsoft 365 license...');
     
@@ -2753,37 +2753,39 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
 });
 
 // License enforcement - prevent functionality without valid license
-async function enforceLicense() {
-  const { licenseStatus } = await chrome.storage.local.get('licenseStatus');
-  
-  if (!licenseStatus || !licenseStatus.valid) {
-    // Block all functionality if not licensed
-    console.warn('Extension functionality blocked - no valid license');
-    
-    // Show license required page
-    chrome.tabs.create({ 
-      url: chrome.runtime.getURL('license-required.html') 
-    });
-    
-    return false;
-  }
-  
-  return true;
-}
+// Currently unused - will be enabled when license checking is fully implemented
+// async function enforceLicense() {
+//   const { licenseStatus } = await chrome.storage.local.get('licenseStatus');
+//   
+//   if (!licenseStatus || !licenseStatus.valid) {
+//     // Block all functionality if not licensed
+//     console.warn('Extension functionality blocked - no valid license');
+//     
+//     // Show license required page
+//     chrome.tabs.create({ 
+//       url: chrome.runtime.getURL('license-required.html') 
+//     });
+//     
+//     return false;
+//   }
+//   
+//   return true;
+// }
 
 // Intercept all actions to check license
-async function withLicenseCheck(action, callback) {
-  const hasLicense = await enforceLicense();
-  
-  if (!hasLicense) {
-    return {
-      success: false,
-      error: 'Valid license required',
-      requiresLicense: true
-    };
-  }
-  
-  return callback();
-}
+// Currently unused - will be implemented when license checking is fully enabled
+// async function withLicenseCheck(action, callback) {
+//   const hasLicense = await enforceLicense();
+//   
+//   if (!hasLicense) {
+//     return {
+//       success: false,
+//       error: 'Valid license required',
+//       requiresLicense: true
+//     };
+//   }
+//   
+//   return callback();
+// }
 
 console.log('DOM Style Injector: Background service worker setup completed');

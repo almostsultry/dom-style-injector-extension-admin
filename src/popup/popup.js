@@ -13,6 +13,14 @@ let msalAvailable = false;
 // Import MSAL (ensure msal-browser is included in your build)
 /* global PublicClientApplication */
 
+// Import manager classes
+import ScreenshotManager from '../scripts/screenshot-manager.js';
+import EyedropperManager from '../scripts/eyedropper-manager.js';
+import BrandingManager from '../scripts/branding-manager.js';
+import AIIntegrationManager from '../scripts/ai-integration-manager.js';
+import VisioIntegrationManager from '../scripts/visio-integration-manager.js';
+import DocumentationGenerator from '../scripts/documentation-generator.js';
+
 // =============================================================================
 // PERMISSIONS CONFIGURATION
 // =============================================================================
@@ -237,8 +245,8 @@ const elements = {
 // =============================================================================
 let currentTab;
 let currentDomain;
-let currentUser = null;
-let userRole = null;
+const currentUser = null;
+const userRole = null;
 let isAdmin = false;
 let customizations = [];
 let editingCustomization = null;
@@ -412,7 +420,7 @@ async function getAuthToken() {
 
                 if (result.success) {
                     console.log('MSAL authentication successful:', result.user.username);
-                    const token = await getAccessToken();
+                    const token = await window.getAccessToken();
                     return token;
                 } else {
                     throw new Error(result.error);
@@ -1135,7 +1143,7 @@ function setupEnhancedEventListeners() {
 // =============================================================================
 // CUSTOMIZATION MANAGEMENT - Enhanced with new format support
 // =============================================================================
-async function loadCustomizations(adminMode) {
+async function loadCustomizations(_adminMode) {
     try {
         const result = await chrome.storage.local.get('customizations');
         let storedCustomizations = result.customizations || [];
@@ -2450,7 +2458,7 @@ async function migrateLegacyCustomizations(legacyCustomizations) {
 // =============================================================================
 // GLOBAL FUNCTIONS - Legacy support
 // =============================================================================
-window.editCustomization = function (selector, property, value, queryPattern) {
+window.editCustomization = function (selector, property, value, _queryPattern) {
     if (userRole !== 'admin' && !isAdmin) return;
 
     // Convert selector back to target format
@@ -2798,39 +2806,7 @@ function handleUserSearch() {
     updateUserCustomizationList();
 }
 
-// Handle user sync
-async function handleUserSync() {
-    try {
-        elements.userSyncButton.disabled = true;
-        elements.userSyncStatus.textContent = 'Syncing...';
-        
-        // Trigger sync through background
-        const result = await chrome.runtime.sendMessage({ action: 'syncRules' });
-        
-        if (result.success) {
-            elements.userSyncStatus.textContent = 'Synced successfully';
-            const now = new Date();
-            elements.userLastSync.textContent = now.toLocaleTimeString();
-            
-            // Reload customizations
-            await loadCustomizations(false);
-            updateUserView();
-        } else {
-            elements.userSyncStatus.textContent = 'Sync failed';
-        }
-        
-    } catch (error) {
-        console.error('User sync error:', error);
-        elements.userSyncStatus.textContent = 'Sync error';
-    } finally {
-        elements.userSyncButton.disabled = false;
-        
-        // Reset status after 3 seconds
-        setTimeout(() => {
-            elements.userSyncStatus.textContent = 'Ready';
-        }, 3000);
-    }
-}
+// Handle user sync - duplicate function removed (already defined above)
 
 // Copy diagnostics information
 async function copyDiagnostics() {
@@ -2849,7 +2825,7 @@ async function copyDiagnostics() {
         customizations.forEach(rule => {
             try {
                 document.querySelector(rule.selector);
-            } catch (e) {
+            } catch (_e) {
                 diagnostics.errors.push({
                     ruleId: rule.id,
                     ruleName: rule.name,
@@ -3043,13 +3019,14 @@ async function handleScreenshot() {
                 // Need to inject into active tab
                 screenshot = await captureFullPageFromTab();
                 break;
-            case 'element':
+            case 'element': {
                 const selector = elements.screenshotSelector?.value;
                 if (!selector) {
                     throw new Error('Please specify an element selector');
                 }
                 screenshot = await captureElementFromTab(selector);
                 break;
+            }
             default:
                 throw new Error('Invalid screenshot type');
         }
@@ -3435,7 +3412,7 @@ async function handleAIAction(e) {
     const action = e.currentTarget.dataset.action;
     const defaultProvider = (await chrome.storage.sync.get('defaultAIProvider')).defaultAIProvider || 'openai';
     
-    closeAIAssistDialog();
+    window.closeAIAssistDialog();
     
     switch (action) {
         case 'generate':
@@ -3964,112 +3941,4 @@ function toggleDocsOptions(show) {
     docsOptions.style.display = docsOptionsVisible ? 'block' : 'none';
 }
 
-// Generate documentation
-async function generateDocumentation() {
-    if (!documentationGenerator) {
-        showNotification('Documentation generator not initialized', 'error');
-        return;
-    }
-    
-    const docsStatus = document.getElementById('docs-status');
-    const doGenerateDocsBtn = document.getElementById('do-generate-docs');
-    
-    try {
-        // Check permission
-        if (!await checkPermission('EXPORT_DATA')) {
-            showNotification('Permission denied for exporting data', 'error');
-            return;
-        }
-        
-        // Get options
-        const options = {
-            includeOverview: document.getElementById('docs-overview')?.checked ?? true,
-            includeTechnical: document.getElementById('docs-technical')?.checked ?? true,
-            includeUserGuide: document.getElementById('docs-user-guide')?.checked ?? true,
-            includeApiDocs: document.getElementById('docs-api')?.checked ?? false,
-            includeDiagrams: document.getElementById('docs-include-diagrams')?.checked ?? true,
-            diagramTypes: []
-        };
-        
-        // Get selected diagram types
-        if (options.includeDiagrams) {
-            const diagramCheckboxes = document.querySelectorAll('input[name="docs-diagram-type"]:checked');
-            options.diagramTypes = Array.from(diagramCheckboxes).map(cb => cb.value);
-        }
-        
-        // Get AI provider if AI enhancement is enabled
-        if (document.getElementById('docs-ai-enhance')?.checked && aiIntegrationManager) {
-            const configuredProviders = aiIntegrationManager.getConfiguredProviders();
-            if (configuredProviders.length > 0) {
-                options.aiProvider = configuredProviders[0]; // Use first configured provider
-            }
-        }
-        
-        // Show status
-        if (docsStatus) {
-            docsStatus.style.display = 'block';
-            docsStatus.textContent = 'Generating documentation...';
-            docsStatus.className = 'import-status info';
-        }
-        
-        // Disable button
-        if (doGenerateDocsBtn) doGenerateDocsBtn.disabled = true;
-        
-        // Get customizations
-        const { customizations = [] } = await chrome.storage.local.get('customizations');
-        
-        if (customizations.length === 0) {
-            showNotification('No customizations to document', 'warning');
-            if (docsStatus) docsStatus.style.display = 'none';
-            if (doGenerateDocsBtn) doGenerateDocsBtn.disabled = false;
-            return;
-        }
-        
-        // Update status for diagram creation
-        if (options.includeDiagrams && options.diagramTypes.length > 0) {
-            if (docsStatus) {
-                docsStatus.textContent = 'Creating diagrams...';
-            }
-        }
-        
-        // Generate documentation
-        const result = await documentationGenerator.generateFullDocumentation(customizations, options);
-        
-        if (result.success) {
-            showNotification('Documentation generated successfully!', 'success');
-            
-            if (docsStatus) {
-                docsStatus.textContent = 'Documentation generated! Downloading...';
-                docsStatus.className = 'import-status success';
-            }
-            
-            // Download the documentation
-            const blob = new Blob([result.documentation], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `DOM-Style-Injector-Documentation-${new Date().toISOString().split('T')[0]}.md`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            // Hide options after success
-            setTimeout(() => {
-                toggleDocsOptions(false);
-                if (docsStatus) docsStatus.style.display = 'none';
-            }, 2000);
-        } else {
-            throw new Error(result.error || 'Failed to generate documentation');
-        }
-        
-    } catch (error) {
-        console.error('Documentation generation error:', error);
-        showNotification(`Failed to generate documentation: ${error.message}`, 'error');
-        
-        if (docsStatus) {
-            docsStatus.textContent = `Error: ${error.message}`;
-            docsStatus.className = 'import-status error';
-        }
-    } finally {
-        if (doGenerateDocsBtn) doGenerateDocsBtn.disabled = false;
-    }
-}
+// Generate documentation - duplicate function removed (already defined above with provider parameter)

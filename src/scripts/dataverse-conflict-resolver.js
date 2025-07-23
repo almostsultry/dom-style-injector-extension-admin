@@ -122,7 +122,7 @@ async function resolveConflict(local, remote, strategy) {
       }
       break;
 
-    case ConflictResolutionStrategy.MERGE:
+    case ConflictResolutionStrategy.MERGE: {
       const merged = mergeCustomizations(local, remote);
       if (merged) {
         resolved = { ...merged, conflictResolution: 'merged' };
@@ -135,6 +135,7 @@ async function resolveConflict(local, remote, strategy) {
         resolution = 'merge_failed';
       }
       break;
+    }
 
     case ConflictResolutionStrategy.MANUAL:
       // Return conflict info for manual resolution
@@ -322,7 +323,7 @@ async function handleManualConflictResolution(conflicts, userChoices) {
         resolved.push({ ...conflict.remote, conflictResolution: 'manual_remote' });
         break;
       
-      case 'keep_both':
+      case 'keep_both': {
         // Create a new ID for the local version
         const localCopy = {
           ...conflict.local,
@@ -333,6 +334,7 @@ async function handleManualConflictResolution(conflicts, userChoices) {
         resolved.push(localCopy);
         resolved.push({ ...conflict.remote, conflictResolution: 'manual_both_remote' });
         break;
+      }
       
       case 'custom':
         // Use the custom resolution provided by the user
