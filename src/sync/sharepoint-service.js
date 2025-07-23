@@ -1,13 +1,12 @@
 // SharePoint service for customizations storage and management
 import { getAccessToken } from '../auth/auth-service.js';
-import { getCurrentEnvironment, sharePointConfig } from '../auth/msal-config.js';
+import { sharepointConfig } from '../auth/msal-config.js';
 
 class SharePointService {
   constructor() {
-    this.environment = getCurrentEnvironment();
-    this.apiEndpoint = this.environment.apiEndpoint;
-    this.siteUrl = this.environment.sharePointSiteUrl;
-    this.listName = sharePointConfig.customizationsListName;
+    this.apiEndpoint = 'https://graph.microsoft.com/v1.0';
+    this.siteUrl = sharepointConfig.siteUrl;
+    this.listName = sharepointConfig.customizationsListName;
     this.siteId = null;
     this.listId = null;
   }
@@ -181,7 +180,7 @@ class SharePointService {
           description: 'Approval status of the customization',
           choice: {
             allowTextEntry: false,
-            choices: sharePointConfig.choiceFields.ApprovalStatus,
+            choices: sharepointConfig.choiceFields.ApprovalStatus,
             displayAs: 'dropDownMenu'
           }
         },
@@ -190,7 +189,7 @@ class SharePointService {
           description: 'Category of the customization',
           choice: {
             allowTextEntry: true,
-            choices: sharePointConfig.choiceFields.Category,
+            choices: sharepointConfig.choiceFields.Category,
             displayAs: 'dropDownMenu'
           }
         },
@@ -199,7 +198,7 @@ class SharePointService {
           description: 'Priority level of the customization',
           choice: {
             allowTextEntry: false,
-            choices: sharePointConfig.choiceFields.Priority,
+            choices: sharepointConfig.choiceFields.Priority,
             displayAs: 'dropDownMenu'
           }
         },

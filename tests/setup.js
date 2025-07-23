@@ -4,6 +4,11 @@
 // Import Jest globals
 import { jest } from '@jest/globals';
 
+// Import TextEncoder/TextDecoder for Node environment
+import { TextEncoder, TextDecoder } from 'util';
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
 // Import the webextension mock
 import 'jest-webextension-mock';
 
@@ -19,6 +24,9 @@ global.chrome = {
       version: '2.0.0',
       name: 'DOM Style Injector Extension'
     }))
+  },
+  scripting: {
+    executeScript: jest.fn(() => Promise.resolve([{ result: { success: true } }]))
   }
 };
 

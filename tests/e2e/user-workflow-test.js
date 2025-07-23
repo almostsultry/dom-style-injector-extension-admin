@@ -1,7 +1,12 @@
 // tests/e2e/user-workflow.test.js
-const puppeteer = require('puppeteer');
-const path = require('path');
-// const fs = require('fs').promises; // Unused
+import puppeteer from 'puppeteer';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { describe, beforeAll, afterAll, beforeEach, test, expect } from '@jest/globals';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('D365 DOM Style Injector - User Workflow Tests', () => {
     let browser;

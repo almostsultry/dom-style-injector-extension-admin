@@ -1,6 +1,11 @@
 // End-to-end tests for admin workflow using Playwright
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Extension setup
 const extensionPath = path.join(__dirname, '../../dist/admin/chrome');

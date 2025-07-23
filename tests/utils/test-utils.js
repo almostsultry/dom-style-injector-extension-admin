@@ -121,6 +121,55 @@ export const testUtils = {
 
   // Mock authentication success
   mockAuthSuccess: () => {
+    // Mock chrome storage to return valid MSAL config
+    const validConfig = {
+      msalClientId: 'test-client-id',
+      msalTenantId: 'test-tenant-id',
+      d365Environment: 'test.dynamics.com'
+    };
+    
+    global.chrome.storage.local.get = jest.fn((keys, callback) => {
+      if (callback) callback(validConfig);
+      return Promise.resolve(validConfig);
+    });
+    
+    // Mock MSAL
+    global.window = global.window || {};
+    global.msal = global.window.msal = {
+      PublicClientApplication: jest.fn(() => ({
+        initialize: jest.fn(() => Promise.resolve()),
+        loginPopup: jest.fn(() => Promise.resolve({
+          account: {
+            username: 'test@example.com',
+            name: 'Test User',
+            tenantId: 'test-tenant-id',
+            homeAccountId: 'test-account-id'
+          },
+          accessToken: 'mock-access-token',
+          idToken: 'mock-id-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        acquireTokenSilent: jest.fn(() => Promise.resolve({
+          accessToken: 'mock-access-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        getAllAccounts: jest.fn(() => [{
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }]),
+        logout: jest.fn(() => Promise.resolve()),
+        setActiveAccount: jest.fn(),
+        getActiveAccount: jest.fn(() => ({
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }))
+      }))
+    };
+    
     global.chrome.identity = {
       getAuthToken: jest.fn((options, callback) => {
         if (callback) callback('mock-auth-token');

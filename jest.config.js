@@ -5,6 +5,10 @@ export default {
     '\\.(css|less|scss|sass)$': '<rootDir>/tests/__mocks__/styleMock.js',
   },
   testMatch: ['**/tests/**/*.test.js'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/tests/e2e/',  // Exclude Playwright e2e tests
+  ],
   collectCoverageFrom: [
     'src/**/*.js',
     'user-version/**/*.js',
