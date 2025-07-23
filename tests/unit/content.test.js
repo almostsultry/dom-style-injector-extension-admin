@@ -22,6 +22,16 @@ describe('Content Script Functionality', () => {
 
         global.document = document;
         global.window = window;
+        
+        // Ensure location properties are set correctly
+        Object.defineProperty(window, 'location', {
+            value: {
+                href: 'https://ambata.crm.dynamics.com/test' + testData.mockDOMElements.complexPage.queryParams,
+                hostname: 'ambata.crm.dynamics.com',
+                search: testData.mockDOMElements.complexPage.queryParams
+            },
+            configurable: true
+        });
 
         testUtils.mockChromeSuccess();
     });
@@ -146,9 +156,11 @@ describe('Content Script Functionality', () => {
             // Mock URL with different query params
             Object.defineProperty(window, 'location', {
                 value: {
-                    href: 'https://ambata.crm.dynamics.com/test?etn=deal&status=new',
-                    search: '?etn=deal&status=new'
-                }
+                    href: 'https://ambata.crm.dynamics.com/test?etn=new_deal',
+                    hostname: 'ambata.crm.dynamics.com',
+                    search: '?etn=new_deal'
+                },
+                configurable: true
             });
 
             chrome.storage.local.get.mockResolvedValue({
@@ -196,6 +208,7 @@ describe('Content Script Functionality', () => {
         test('should wait for dynamic content before applying styles', async () => {
             // Mock slow-loading content
             const slowDom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+            const originalDocument = global.document;
             global.document = slowDom.window.document;
 
             const waitPromise = waitForDynamicContent();
@@ -209,6 +222,9 @@ describe('Content Script Functionality', () => {
 
             const result = await waitPromise;
             expect(result.contentDetected).toBe(true);
+            
+            // Restore original document
+            global.document = originalDocument;
         });
     });
 

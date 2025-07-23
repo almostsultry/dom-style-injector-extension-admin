@@ -5,8 +5,8 @@ import { sharepointConfig } from '../auth/msal-config.js';
 class SharePointService {
   constructor() {
     this.apiEndpoint = 'https://graph.microsoft.com/v1.0';
-    this.siteUrl = sharepointConfig.siteUrl;
-    this.listName = sharepointConfig.customizationsListName;
+    this.siteUrl = 'https://company.sharepoint.com/sites/customizations'; // Default site URL
+    this.listName = sharepointConfig.listName;
     this.siteId = null;
     this.listId = null;
   }

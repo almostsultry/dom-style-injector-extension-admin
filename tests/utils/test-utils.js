@@ -128,9 +128,20 @@ export const testUtils = {
       d365Environment: 'test.dynamics.com'
     };
     
+    const syncConfig = {
+      clientId: 'test-client-id',
+      tenantId: 'test-tenant-id',
+      d365OrgUrl: 'https://test.dynamics.com'
+    };
+    
     global.chrome.storage.local.get = jest.fn((keys, callback) => {
       if (callback) callback(validConfig);
       return Promise.resolve(validConfig);
+    });
+    
+    global.chrome.storage.sync.get = jest.fn((keys, callback) => {
+      if (callback) callback(syncConfig);
+      return Promise.resolve(syncConfig);
     });
     
     // Mock MSAL

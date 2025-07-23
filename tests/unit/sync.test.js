@@ -9,6 +9,14 @@ describe('Sync Manager', () => {
     testUtils.mockChromeSuccess();
     testUtils.mockSharePointSuccess();
     jest.clearAllMocks();
+    
+    // Set up default fetch mock for tests that don't specify their own
+    global.fetch = jest.fn(() => 
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ value: [] })
+      })
+    );
   });
 
   describe('Sync Direction Handling', () => {
@@ -416,13 +424,18 @@ async function syncRemoteToLocal(result, _options) {
   const response = await fetch('/mock-sharepoint-api');
   const remoteData = await response.json();
   
+  // Ensure value property exists
+  if (!remoteData.value) {
+    remoteData.value = [];
+  }
+  
   result.remote.read = remoteData.value.length;
   result.local.written = remoteData.value.length;
   
   // Transform and store data
   const transformedData = {};
   remoteData.value.forEach(item => {
-    const domain = item.fields.Title;
+    const domain = (item.fields || item).Title;
     transformedData[domain] = [transformSharePointToLocal(item)];
   });
   
@@ -490,13 +503,15 @@ function transformLocalToSharePoint(domain, customization) {
 
 function transformSharePointToLocal(sharePointItem) {
   try {
-    const customizationData = JSON.parse(sharePointItem.fields.CustomizationData);
+    // Handle both direct properties and fields wrapper
+    const item = sharePointItem.fields || sharePointItem;
+    const customizationData = JSON.parse(item.CustomizationData);
     return {
-      domain: sharePointItem.fields.Title,
+      domain: item.Title,
       queryStrings: customizationData.queryStrings || {},
-      version: sharePointItem.fields.Version,
-      lastModified: sharePointItem.lastModifiedDateTime,
-      approvalStatus: sharePointItem.fields.ApprovalStatus
+      version: item.Version,
+      lastModified: item.Modified || sharePointItem.Modified,
+      approvalStatus: item.ApprovalStatus
     };
   } catch (error) {
     console.error('Failed to parse SharePoint data:', error);

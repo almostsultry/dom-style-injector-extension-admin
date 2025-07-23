@@ -1,15 +1,26 @@
 // Integration tests for SharePoint service
 import { jest } from '@jest/globals';
 import { sharePointService } from '../../src/sync/sharepoint-service.js';
+import { authenticateUser } from '../../src/auth/auth-service.js';
 import testData from '../fixtures/test-data.json';
 
 /* global testUtils */
 
 describe('SharePoint Service Integration', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     testUtils.mockChromeSuccess();
     testUtils.mockAuthSuccess();
     jest.clearAllMocks();
+    
+    // Authenticate first to ensure auth service is initialized
+    await authenticateUser();
+    
+    // Mock token acquisition for SharePoint API calls
+    const msalInstance = new global.msal.PublicClientApplication();
+    msalInstance.acquireTokenSilent = jest.fn(() => Promise.resolve({
+      accessToken: 'test-sharepoint-token',
+      expiresOn: new Date(Date.now() + 3600000)
+    }));
   });
 
   describe('Service Initialization', () => {

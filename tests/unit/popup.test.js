@@ -221,8 +221,10 @@ describe('Popup Functionality', () => {
   });
 
   describe('User Interface', () => {
-    test.skip('should show success status message', () => {
-      // Skip this test as it tests a mock function, not the actual implementation
+    test('should show success status message', () => {
+      // Mock the elements object that showStatus uses
+      global.elements = { status: mockDocument.getElementById('status') };
+      
       showStatus('Test success message', false);
 
       const statusElement = mockDocument.getElementById('status');
@@ -231,8 +233,10 @@ describe('Popup Functionality', () => {
       expect(statusElement.style.display).toBe('block');
     });
 
-    test.skip('should show error status message', () => {
-      // Skip this test as it tests a mock function, not the actual implementation
+    test('should show error status message', () => {
+      // Mock the elements object that showStatus uses
+      global.elements = { status: mockDocument.getElementById('status') };
+      
       showStatus('Test error message', true);
 
       const statusElement = mockDocument.getElementById('status');
@@ -454,10 +458,12 @@ async function initializeExtension(domain) {
 }
 
 function showStatus(message, isError = false) {
-  const status = document.getElementById('status');
-  status.textContent = message;
-  status.className = `status ${isError ? 'error' : 'success'}`;
-  status.style.display = 'block';
+  const status = global.elements?.status || document.getElementById('status');
+  if (status) {
+    status.textContent = message;
+    status.className = `status ${isError ? 'error' : 'success'}`;
+    status.style.display = 'block';
+  }
 }
 
 function clearFormFields() {
