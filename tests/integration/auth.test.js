@@ -2,6 +2,8 @@
 import { jest } from '@jest/globals';
 import { authenticateUser, getAccessToken, logoutUser } from '../../src/auth/auth-service.js';
 
+/* global testUtils */
+
 describe('Authentication Integration', () => {
   beforeEach(() => {
     testUtils.mockChromeSuccess();
@@ -328,7 +330,7 @@ async function getAuthStatus() {
             user: localAuth.userInfo,
             tokenValid: true
           };
-        } catch (tokenError) {
+        } catch (_tokenError) {
           return {
             isAuthenticated: true,
             user: localAuth.userInfo,

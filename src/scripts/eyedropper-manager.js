@@ -37,7 +37,7 @@ class EyedropperManager {
     }
 
     // Open color picker
-    async pickColor(options = {}) {
+    async pickColor(_options = {}) {
         try {
             if (!this.isSupported()) {
                 throw new Error('EyeDropper API not supported');
@@ -91,7 +91,7 @@ class EyedropperManager {
     }
 
     // Enable element inspector mode
-    enableElementInspector(options = {}) {
+    enableElementInspector(_options = {}) {
         if (this.elementInspectorEnabled) {
             this.disableElementInspector();
         }
@@ -411,7 +411,8 @@ class EyedropperManager {
         
         const max = Math.max(r, g, b);
         const min = Math.min(r, g, b);
-        let h, s, l = (max + min) / 2;
+        let h, s;
+        const l = (max + min) / 2;
         
         if (max === min) {
             h = s = 0; // achromatic

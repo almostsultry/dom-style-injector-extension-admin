@@ -1,6 +1,9 @@
 // Documentation Generator for DOM Style Injector Extension
 // Combines AI and Visio integration for comprehensive documentation
 
+import AIIntegrationManager from './ai-integration-manager.js';
+import VisioIntegrationManager from './visio-integration-manager.js';
+
 class DocumentationGenerator {
     constructor() {
         this.aiManager = null;
@@ -202,7 +205,7 @@ The DOM Style Injector Extension uses a modular architecture to apply CSS custom
     }
 
     // Generate user guide section
-    async generateUserGuideSection(customizations, aiProvider) {
+    async generateUserGuideSection(customizations, _aiProvider) {
         const section = {
             title: 'User Guide',
             content: '',
@@ -232,7 +235,7 @@ The DOM Style Injector Extension automatically applies your configured CSS custo
     }
 
     // Generate API documentation section
-    async generateApiSection(customizations, aiProvider) {
+    async generateApiSection(customizations, _aiProvider) {
         const section = {
             title: 'API Documentation',
             content: '',
@@ -533,13 +536,13 @@ For more help, contact your System Administrator.
     // Convert markdown to HTML
     convertToHTML(markdown) {
         // Basic markdown to HTML conversion
-        let html = markdown
+        const html = markdown
             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.+?)\*/g, '<em>$1</em>')
-            .replace(/\`(.+?)\`/g, '<code>$1</code>')
+            .replace(/`(.+?)`/g, '<code>$1</code>')
             .replace(/\n\n/g, '</p><p>')
             .replace(/\n/g, '<br>');
         

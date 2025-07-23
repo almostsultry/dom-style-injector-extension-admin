@@ -2,6 +2,8 @@
 import { jest } from '@jest/globals';
 import testData from '../fixtures/test-data.json';
 
+/* global testUtils */
+
 // Mock DOM environment
 import { JSDOM } from 'jsdom';
 
@@ -127,7 +129,7 @@ describe('Content Script Functionality', () => {
 
     describe('Customization Auto-Application', () => {
         test('should auto-apply matching customizations on page load', async () => {
-            const customizations = testData.mockCustomizations['ambata.crm.dynamics.com'][0];
+            // const customizations = testData.mockCustomizations['ambata.crm.dynamics.com'][0];
 
             chrome.storage.local.get.mockResolvedValue({
                 customizations: testData.mockCustomizations
@@ -252,7 +254,7 @@ describe('Content Script Functionality', () => {
 
     describe('URL Change Detection', () => {
         test('should detect SPA navigation', () => {
-            const initialUrl = window.location.href;
+            // const initialUrl = window.location.href;
             let urlChanged = false;
 
             // Mock URL change detection
@@ -393,7 +395,7 @@ function parseUrlQueryParams(url) {
             params[key] = value;
         });
         return params;
-    } catch (error) {
+    } catch (_error) {
         return {};
     }
 }

@@ -365,10 +365,11 @@ class ScreenshotManager {
             case 'rectangle':
                 this.ctx.rect(startX, startY, currentX - startX, currentY - startY);
                 break;
-            case 'circle':
+            case 'circle': {
                 const radius = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
                 this.ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
                 break;
+            }
             case 'arrow':
                 this.drawArrow(startX, startY, currentX, currentY);
                 break;

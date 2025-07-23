@@ -223,7 +223,7 @@ async function syncBidirectional(result, options) {
 }
 
 // Sync a domain's customizations to remote
-async function syncDomainToRemote(domain, domainData, remoteCustomizations, result, options) {
+async function syncDomainToRemote(domain, domainData, remoteCustomizations, result, _options) {
   try {
     // Find existing remote item for this domain
     const existingRemote = remoteCustomizations.find(item => item.Title === domain);
@@ -330,7 +330,7 @@ async function resolveConflict(domain, localData, remoteItem, updatedCustomizati
     
     try {
       remoteData = JSON.parse(remoteItem.CustomizationData);
-    } catch (parseError) {
+    } catch (_parseError) {
       // Remote data is invalid, keep local
       console.warn(`Remote data for ${domain} is invalid, keeping local version`);
       return;
@@ -385,7 +385,7 @@ async function resolveConflict(domain, localData, remoteItem, updatedCustomizati
         }
         break;
         
-      case 'merge':
+      case 'merge': {
         // Attempt to merge (complex logic)
         const merged = attemptMerge(localData, remoteData);
         if (merged) {
@@ -404,6 +404,7 @@ async function resolveConflict(domain, localData, remoteItem, updatedCustomizati
             { ...options, conflictResolution: 'newest_wins' });
         }
         break;
+      }
         
       default:
         console.warn(`Unknown conflict resolution strategy: ${strategy}`);

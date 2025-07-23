@@ -3,6 +3,8 @@ import { jest } from '@jest/globals';
 import { sharePointService } from '../../src/sync/sharepoint-service.js';
 import testData from '../fixtures/test-data.json';
 
+/* global testUtils */
+
 describe('SharePoint Service Integration', () => {
   beforeEach(() => {
     testUtils.mockChromeSuccess();

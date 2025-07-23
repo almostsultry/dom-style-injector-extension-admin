@@ -180,7 +180,7 @@ class ExportImportManager {
     parseJSON(content) {
         try {
             return JSON.parse(content);
-        } catch (error) {
+        } catch (_error) {
             throw new Error('Invalid JSON format');
         }
     }
@@ -284,7 +284,7 @@ class ExportImportManager {
             if (customization.selector) {
                 try {
                     document.querySelector(customization.selector);
-                } catch (e) {
+                } catch (_e) {
                     itemErrors.push(`Row ${index + 1}: Invalid selector "${customization.selector}"`);
                 }
             }
@@ -334,7 +334,7 @@ class ExportImportManager {
                     imported: Date.now()
                 }));
 
-            case 'skip':
+            case 'skip': {
                 // Skip duplicates
                 const existingSelectors = new Set(existing.map(c => c.selector));
                 const newCustomizations = importing.filter(c => 
@@ -348,9 +348,10 @@ class ExportImportManager {
                         imported: Date.now()
                     }))
                 ];
+            }
 
             case 'merge':
-            default:
+            default: {
                 // Merge with conflict detection
                 const merged = [...existing];
                 const selectorMap = new Map(existing.map(c => [c.selector, c]));
@@ -382,6 +383,7 @@ class ExportImportManager {
                 });
 
                 return merged;
+            }
         }
     }
 

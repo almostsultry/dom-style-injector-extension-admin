@@ -1,9 +1,11 @@
 // Unit tests for popup functionality
 import { jest } from '@jest/globals';
 
+/* global testUtils */
+
 describe('Popup Functionality', () => {
   let mockDocument;
-  let popupModule;
+  // let popupModule;
 
   beforeEach(() => {
     // Mock DOM elements

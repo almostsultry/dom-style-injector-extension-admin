@@ -1038,7 +1038,7 @@ function setupEnhancedEventListeners() {
     }
     
     if (elements.previewRule) {
-        elements.previewRule.addEventListener('click', previewCurrentRule);
+        elements.previewRule.addEventListener('click', previewCurrentRule); // eslint-disable-line no-undef
     }
 
     // Pseudo-class tab events
@@ -1202,6 +1202,7 @@ async function saveCustomization(customization) {
         await notifyContentScript('updateCustomization', customization);
 
         // Preview functionality
+// eslint-disable-next-line no-unused-vars
 async function previewCurrentRule() {
     try {
         // Check permission

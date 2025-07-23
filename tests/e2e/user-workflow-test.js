@@ -1,7 +1,7 @@
 // tests/e2e/user-workflow.test.js
 const puppeteer = require('puppeteer');
 const path = require('path');
-const fs = require('fs').promises;
+// const fs = require('fs').promises; // Unused
 
 describe('D365 DOM Style Injector - User Workflow Tests', () => {
     let browser;

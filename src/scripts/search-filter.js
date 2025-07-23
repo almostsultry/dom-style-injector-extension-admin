@@ -30,7 +30,7 @@ class SearchFilterManager {
 
     // Update filter
     setFilter(filterName, value) {
-        if (this.filters.hasOwnProperty(filterName)) {
+        if (Object.prototype.hasOwnProperty.call(this.filters, filterName)) {
             this.filters[filterName] = value;
             this.applyFilters();
         }
@@ -105,7 +105,7 @@ class SearchFilterManager {
         if (customization.selector) {
             try {
                 document.querySelector(customization.selector);
-            } catch (e) {
+            } catch (_e) {
                 return true;
             }
         }
@@ -249,7 +249,7 @@ class SearchFilterManager {
     // Quick filter presets
     applyPreset(presetName) {
         switch (presetName) {
-            case 'recent':
+            case 'recent': {
                 // Show items modified in last 7 days
                 const weekAgo = new Date();
                 weekAgo.setDate(weekAgo.getDate() - 7);
@@ -257,6 +257,7 @@ class SearchFilterManager {
                 this.filters.sortBy = 'modified';
                 this.filters.sortOrder = 'desc';
                 break;
+            }
                 
             case 'errors':
                 // Show only items with errors

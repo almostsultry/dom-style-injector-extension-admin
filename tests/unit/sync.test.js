@@ -1,5 +1,7 @@
 // Unit tests for sync functionality
 import { jest } from '@jest/globals';
+
+/* global testUtils */
 import testData from '../fixtures/test-data.json';
 
 describe('Sync Manager', () => {
@@ -251,7 +253,7 @@ describe('Sync Manager', () => {
 
       try {
         await performSync('upload');
-      } catch (error) {
+      } catch (_error) {
         // Expected to fail
       }
 
@@ -395,7 +397,7 @@ async function performSync(direction, options = {}) {
   }
 }
 
-async function syncLocalToRemote(result, options) {
+async function syncLocalToRemote(result, _options) {
   const localData = await chrome.storage.local.get('customizations');
   const customizations = localData.customizations || {};
   
@@ -410,7 +412,7 @@ async function syncLocalToRemote(result, options) {
   return result;
 }
 
-async function syncRemoteToLocal(result, options) {
+async function syncRemoteToLocal(result, _options) {
   const response = await fetch('/mock-sharepoint-api');
   const remoteData = await response.json();
   
@@ -461,10 +463,11 @@ async function resolveConflict(domain, localData, remoteItem, updatedCustomizati
       conflict.resolution = conflict.localTimestamp > conflict.remoteTimestamp ? 
         'local_newer' : 'remote_newer';
       break;
-    case 'merge':
+    case 'merge': {
       const merged = attemptMerge(localData, JSON.parse(remoteItem.CustomizationData));
       conflict.resolution = merged ? 'merged' : 'merge_failed_fallback';
       break;
+    }
     default:
       conflict.resolution = 'unresolved';
   }
@@ -526,7 +529,7 @@ function attemptMerge(localData, remoteData) {
     }];
 
     return merged;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

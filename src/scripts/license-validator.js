@@ -235,7 +235,7 @@ class LicenseValidator {
   /**
    * Calculate license expiry date
    */
-  calculateExpiryDate(license) {
+  calculateExpiryDate(_license) {
     // Microsoft 365 licenses typically don't have explicit expiry in the API
     // They're subscription-based and renew monthly/annually
     // You might need to implement custom logic based on your agreement with Microsoft
@@ -304,7 +304,7 @@ class LicenseValidator {
   /**
    * Request license assignment (opens Microsoft 365 admin center)
    */
-  async requestLicenseAssignment(tenantId) {
+  async requestLicenseAssignment(_tenantId) {
     const adminUrl = `https://admin.microsoft.com/Adminportal/Home#/licenses`;
     
     // Open admin center for license assignment
@@ -356,16 +356,16 @@ class LicenseValidator {
   /**
    * Monitor license changes via Microsoft Graph subscriptions
    */
-  async setupLicenseChangeMonitoring(accessToken) {
+  async setupLicenseChangeMonitoring(_accessToken) {
     try {
       // Create a subscription to monitor license changes
-      const subscription = {
-        changeType: 'updated',
-        notificationUrl: `${chrome.runtime.getURL('webhook')}`, // Would need server component
-        resource: '/users/{user-id}/licenseDetails',
-        expirationDateTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        clientState: crypto.randomUUID()
-      };
+      // const subscription = {
+      //   changeType: 'updated',
+      //   notificationUrl: `${chrome.runtime.getURL('webhook')}`, // Would need server component
+      //   resource: '/users/{user-id}/licenseDetails',
+      //   expirationDateTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      //   clientState: crypto.randomUUID()
+      // };
       
       // Note: This would require a server component to receive webhooks
       // For now, we'll rely on periodic checks

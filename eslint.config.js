@@ -79,6 +79,7 @@ export default [
         alert: 'readonly',
         confirm: 'readonly',
         prompt: 'readonly',
+        EyeDropper: 'readonly',
       },
     },
     rules: {
@@ -92,6 +93,8 @@ export default [
         'error',
         {
           argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
         },
       ],
       'prefer-const': 'error',
