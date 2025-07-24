@@ -5,10 +5,46 @@ import { jest } from '@jest/globals';
 import testData from '../fixtures/test-data.json';
 
 describe('Sync Manager', () => {
+  let storageData = {};
+  
   beforeEach(() => {
     testUtils.mockChromeSuccess();
     testUtils.mockSharePointSuccess();
     jest.clearAllMocks();
+    
+    // Reset storage data
+    storageData = {};
+    
+    // Mock chrome.storage with persistence
+    chrome.storage.local.get.mockImplementation((keys) => {
+      return Promise.resolve(
+        Array.isArray(keys) 
+          ? keys.reduce((acc, key) => {
+              if (storageData[key] !== undefined) {
+                acc[key] = storageData[key];
+              }
+              return acc;
+            }, {})
+          : storageData
+      );
+    });
+    
+    chrome.storage.local.set.mockImplementation((items) => {
+      Object.assign(storageData, items);
+      return Promise.resolve();
+    });
+    
+    // Only mock remove if it exists
+    if (chrome.storage.local.remove) {
+      chrome.storage.local.remove.mockImplementation((keys) => {
+        if (Array.isArray(keys)) {
+          keys.forEach(key => delete storageData[key]);
+        } else {
+          delete storageData[keys];
+        }
+        return Promise.resolve();
+      });
+    }
     
     // Set up default fetch mock for tests that don't specify their own
     global.fetch = jest.fn(() => 
@@ -65,6 +101,13 @@ describe('Sync Manager', () => {
         customizations: localData
       });
       
+      // First fetch for upload sync
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ value: [] })
+      });
+      
+      // Second fetch for download sync
       global.fetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ value: remoteData })
@@ -405,17 +448,27 @@ async function performSync(direction, options = {}) {
         throw new Error(`Invalid sync direction: ${direction}`);
     }
     
+    // Ensure endTime is set if not already
+    if (!syncResult.endTime) {
+      syncResult.endTime = Date.now();
+    }
+    
     // Store successful sync result
     await chrome.storage.local.set({
-      lastSyncTime: Date.now(),
+      lastSyncTime: syncResult.endTime,
       lastSyncResult: syncResult
     });
     
     return syncResult;
   } catch (error) {
     await chrome.storage.local.set({
-      lastSyncError: error.message,
-      lastSyncTime: Date.now()
+      lastSyncError: {
+        success: false,
+        error: error.message,
+        startTime: Date.now(),
+        endTime: Date.now(),
+        direction: direction
+      }
     });
     throw error;
   } finally {
@@ -429,6 +482,14 @@ async function syncLocalToRemote(result, _options) {
   
   result.local.read = Object.keys(customizations).length;
   
+  // Call SharePoint API to check connection (like real implementation would)
+  const response = await fetch('/mock-sharepoint-api');
+  
+  // Check if response is ok
+  if (!response.ok) {
+    throw new Error(`SharePoint API error: ${response.statusText}`);
+  }
+  
   // Mock SharePoint operations
   result.remote.written = result.local.read;
   
@@ -440,6 +501,12 @@ async function syncLocalToRemote(result, _options) {
 
 async function syncRemoteToLocal(result, _options) {
   const response = await fetch('/mock-sharepoint-api');
+  
+  // Check if response is ok
+  if (!response.ok) {
+    throw new Error(`SharePoint API error: ${response.statusText}`);
+  }
+  
   const remoteData = await response.json();
   
   // Ensure value property exists

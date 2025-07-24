@@ -290,7 +290,7 @@ describe('SharePoint Service Integration', () => {
       expect(results).toHaveLength(1);
       expect(results[0].ApprovalStatus).toBe('Approved');
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("ApprovalStatus eq 'Approved'"),
+        expect.stringContaining("ApprovalStatus%20eq%20'Approved'"),
         expect.any(Object)
       );
     });
@@ -507,11 +507,29 @@ describe('SharePoint Service Integration', () => {
         Version: 1
       }));
 
-      // Mock batch response
-      global.fetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ id: 'batch-result' })
-      });
+      // Mock responses for initialization and batch operations
+      global.fetch
+        .mockResolvedValueOnce({ // First call - get site ID
+          ok: true,
+          json: () => Promise.resolve({ id: 'mock-site-id-12345' })
+        })
+        .mockResolvedValueOnce({ // Second call - get list ID
+          ok: true,
+          json: () => Promise.resolve({
+            value: [{ id: 'mock-list-id-67890', displayName: 'CustomizationRules' }]
+          })
+        })
+        .mockResolvedValue({ // All subsequent calls - create customization
+          ok: true,
+          json: () => Promise.resolve({ 
+            id: 'batch-result',
+            fields: {
+              Title: 'Test Domain',
+              CustomizationData: '{}',
+              Version: 1
+            }
+          })
+        });
 
       await sharePointService.initialize();
 

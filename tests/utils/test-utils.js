@@ -33,6 +33,10 @@ export const testUtils = {
           clear: jest.fn((callback) => {
             if (callback) callback();
             return Promise.resolve();
+          }),
+          remove: jest.fn((keys, callback) => {
+            if (callback) callback();
+            return Promise.resolve();
           })
         },
         sync: {
