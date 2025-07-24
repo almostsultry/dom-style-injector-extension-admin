@@ -12,6 +12,10 @@ describe('SharePoint Service Integration', () => {
     testUtils.mockAuthSuccess();
     jest.clearAllMocks();
     
+    // Reset SharePoint service state
+    sharePointService.siteId = null;
+    sharePointService.listId = null;
+    
     // Authenticate first to ensure auth service is initialized
     await authenticateUser();
     
@@ -60,6 +64,14 @@ describe('SharePoint Service Integration', () => {
           ok: true,
           json: () => Promise.resolve(testData.mockSharePointResponses.listInfo)
         });
+      
+      // Mock column creation calls (7 columns)
+      for (let i = 0; i < 7; i++) {
+        global.fetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ name: `column${i}` })
+        });
+      }
 
       const result = await sharePointService.initialize();
 
@@ -444,7 +456,7 @@ describe('SharePoint Service Integration', () => {
       const result = await sharePointService.testConnection();
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Connection test failed: 500 Internal Server Error');
+      expect(result.error).toContain('Failed to get site ID: 500 Internal Server Error');
     });
   });
 

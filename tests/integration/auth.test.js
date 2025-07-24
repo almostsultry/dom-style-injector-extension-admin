@@ -87,46 +87,132 @@ describe('Authentication Integration', () => {
       // First authenticate
       await authenticateUser();
       
-      // Mock the acquireTokenSilent method
-      const msalInstance = new global.msal.PublicClientApplication();
-      msalInstance.acquireTokenSilent = jest.fn(() => Promise.resolve({
-        accessToken: 'silent-token',
-        expiresOn: new Date(Date.now() + 3600000)
+      // Update the mock to return the expected token
+      global.msal.PublicClientApplication.mockImplementation(() => ({
+        initialize: jest.fn(() => Promise.resolve()),
+        loginPopup: jest.fn(() => Promise.resolve({
+          account: {
+            username: 'test@example.com',
+            name: 'Test User',
+            tenantId: 'test-tenant-id',
+            homeAccountId: 'test-account-id'
+          },
+          accessToken: 'mock-access-token',
+          idToken: 'mock-id-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        acquireTokenSilent: jest.fn(() => Promise.resolve({
+          accessToken: 'silent-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        acquireTokenPopup: jest.fn(() => Promise.resolve({
+          accessToken: 'popup-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        getAllAccounts: jest.fn(() => [{
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }]),
+        logout: jest.fn(() => Promise.resolve()),
+        setActiveAccount: jest.fn(),
+        getActiveAccount: jest.fn(() => ({
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }))
       }));
 
       const token = await getAccessToken();
 
       expect(token).toBe('silent-token');
-      expect(msalInstance.acquireTokenSilent).toHaveBeenCalled();
     });
 
     test('should fall back to popup when silent acquisition fails', async () => {
       // First authenticate
       await authenticateUser();
       
-      // Mock the token acquisition methods
-      const msalInstance = new global.msal.PublicClientApplication();
-      msalInstance.acquireTokenSilent = jest.fn(() => Promise.reject(new Error('Silent failed')));
-      msalInstance.acquireTokenPopup = jest.fn(() => Promise.resolve({
-        accessToken: 'popup-token',
-        expiresOn: new Date(Date.now() + 3600000)
+      // Update the mock to fail silently and succeed with popup
+      global.msal.PublicClientApplication.mockImplementation(() => ({
+        initialize: jest.fn(() => Promise.resolve()),
+        loginPopup: jest.fn(() => Promise.resolve({
+          account: {
+            username: 'test@example.com',
+            name: 'Test User',
+            tenantId: 'test-tenant-id',
+            homeAccountId: 'test-account-id'
+          },
+          accessToken: 'mock-access-token',
+          idToken: 'mock-id-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        acquireTokenSilent: jest.fn(() => Promise.reject(new Error('Silent failed'))),
+        acquireTokenPopup: jest.fn(() => Promise.resolve({
+          accessToken: 'popup-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        getAllAccounts: jest.fn(() => [{
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }]),
+        logout: jest.fn(() => Promise.resolve()),
+        setActiveAccount: jest.fn(),
+        getActiveAccount: jest.fn(() => ({
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }))
       }));
 
       const token = await getAccessToken();
 
       expect(token).toBe('popup-token');
-      expect(msalInstance.acquireTokenPopup).toHaveBeenCalled();
     });
 
     test('should handle token acquisition failure', async () => {
-      // First authenticate
-      await authenticateUser();
+      // Setup mock to fail token acquisition from the start
+      const failingMock = {
+        initialize: jest.fn(() => Promise.resolve()),
+        loginPopup: jest.fn(() => Promise.resolve({
+          account: {
+            username: 'test@example.com',
+            name: 'Test User',
+            tenantId: 'test-tenant-id',
+            homeAccountId: 'test-account-id'
+          },
+          accessToken: 'mock-access-token',
+          idToken: 'mock-id-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        acquireTokenSilent: jest.fn(() => Promise.reject(new Error('Silent failed'))),
+        acquireTokenPopup: jest.fn(() => Promise.reject(new Error('Popup failed'))),
+        getAllAccounts: jest.fn(() => [{
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }]),
+        logout: jest.fn(() => Promise.resolve()),
+        setActiveAccount: jest.fn(),
+        getActiveAccount: jest.fn(() => ({
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }))
+      };
       
-      // Mock the token acquisition methods to fail
-      const msalInstance = new global.msal.PublicClientApplication();
-      msalInstance.acquireTokenSilent = jest.fn(() => Promise.reject(new Error('Silent failed')));
-      msalInstance.acquireTokenPopup = jest.fn(() => Promise.reject(new Error('Popup failed')));
+      global.msal.PublicClientApplication.mockImplementation(() => failingMock);
+      
+      // First authenticate to set up the account
+      await authenticateUser();
 
+      // Now token acquisition should fail
       await expect(getAccessToken()).rejects.toThrow('Popup failed');
     });
   });
@@ -136,9 +222,39 @@ describe('Authentication Integration', () => {
       // First authenticate
       await authenticateUser();
       
-      // Mock the logout method
-      const msalInstance = new global.msal.PublicClientApplication();
-      msalInstance.logoutPopup = jest.fn(() => Promise.resolve());
+      // Update the mock to include logoutPopup
+      global.msal.PublicClientApplication.mockImplementation(() => ({
+        initialize: jest.fn(() => Promise.resolve()),
+        loginPopup: jest.fn(() => Promise.resolve({
+          account: {
+            username: 'test@example.com',
+            name: 'Test User',
+            tenantId: 'test-tenant-id',
+            homeAccountId: 'test-account-id'
+          },
+          accessToken: 'mock-access-token',
+          idToken: 'mock-id-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        acquireTokenSilent: jest.fn(() => Promise.resolve({
+          accessToken: 'mock-access-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        getAllAccounts: jest.fn(() => [{
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }]),
+        logoutPopup: jest.fn(() => Promise.resolve()),
+        setActiveAccount: jest.fn(),
+        getActiveAccount: jest.fn(() => ({
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }))
+      }));
 
       const result = await logoutUser();
 
@@ -155,9 +271,39 @@ describe('Authentication Integration', () => {
       // First authenticate
       await authenticateUser();
       
-      // Mock the logout method to fail
-      const msalInstance = new global.msal.PublicClientApplication();
-      msalInstance.logoutPopup = jest.fn(() => Promise.reject(new Error('Logout failed')));
+      // Update the mock to fail logout
+      global.msal.PublicClientApplication.mockImplementation(() => ({
+        initialize: jest.fn(() => Promise.resolve()),
+        loginPopup: jest.fn(() => Promise.resolve({
+          account: {
+            username: 'test@example.com',
+            name: 'Test User',
+            tenantId: 'test-tenant-id',
+            homeAccountId: 'test-account-id'
+          },
+          accessToken: 'mock-access-token',
+          idToken: 'mock-id-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        acquireTokenSilent: jest.fn(() => Promise.resolve({
+          accessToken: 'mock-access-token',
+          expiresOn: new Date(Date.now() + 3600000)
+        })),
+        getAllAccounts: jest.fn(() => [{
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }]),
+        logoutPopup: jest.fn(() => Promise.reject(new Error('Logout failed'))),
+        setActiveAccount: jest.fn(),
+        getActiveAccount: jest.fn(() => ({
+          username: 'test@example.com',
+          name: 'Test User',
+          tenantId: 'test-tenant-id',
+          homeAccountId: 'test-account-id'
+        }))
+      }));
 
       const result = await logoutUser();
 

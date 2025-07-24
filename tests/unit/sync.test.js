@@ -390,16 +390,34 @@ async function performSync(direction, options = {}) {
       errors: []
     };
 
+    let syncResult;
     switch (direction) {
       case 'upload':
-        return await syncLocalToRemote(result, options);
+        syncResult = await syncLocalToRemote(result, options);
+        break;
       case 'download':
-        return await syncRemoteToLocal(result, options);
+        syncResult = await syncRemoteToLocal(result, options);
+        break;
       case 'bidirectional':
-        return await syncBidirectional(result, options);
+        syncResult = await syncBidirectional(result, options);
+        break;
       default:
         throw new Error(`Invalid sync direction: ${direction}`);
     }
+    
+    // Store successful sync result
+    await chrome.storage.local.set({
+      lastSyncTime: Date.now(),
+      lastSyncResult: syncResult
+    });
+    
+    return syncResult;
+  } catch (error) {
+    await chrome.storage.local.set({
+      lastSyncError: error.message,
+      lastSyncTime: Date.now()
+    });
+    throw error;
   } finally {
     global.syncInProgress = false;
   }
@@ -510,7 +528,7 @@ function transformSharePointToLocal(sharePointItem) {
       domain: item.Title,
       queryStrings: customizationData.queryStrings || {},
       version: item.Version,
-      lastModified: item.Modified || sharePointItem.Modified,
+      lastModified: sharePointItem.lastModifiedDateTime || sharePointItem.Modified || item.Modified,
       approvalStatus: item.ApprovalStatus
     };
   } catch (error) {

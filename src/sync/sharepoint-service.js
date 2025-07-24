@@ -267,13 +267,10 @@ class SharePointService {
       
       let url = `${this.apiEndpoint}/sites/${this.siteId}/lists/${this.listId}/items?$expand=fields`;
       
-      if (filter) {
-        url += `&$filter=${encodeURIComponent(filter)}`;
-      }
-      
-      // Add default filter for active items
+      // Combine filters properly
       const activeFilter = "fields/IsActive eq true";
-      url += filter ? `&$filter=${encodeURIComponent(filter)} and ${activeFilter}` : `&$filter=${activeFilter}`;
+      const combinedFilter = filter ? `${filter} and ${activeFilter}` : activeFilter;
+      url += `&$filter=${encodeURIComponent(combinedFilter)}`;
       
       const response = await fetch(url, {
         headers: {
